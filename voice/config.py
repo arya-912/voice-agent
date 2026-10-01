@@ -7,7 +7,9 @@ import os
 # Gemini Live model + voice. Native-audio model handles Hinglish
 # code-switching in a single model (STT + LLM + TTS). This is the
 # AI-Studio (Gemini API key) variant; the "gemini-live-*" ids need Vertex.
-GEMINI_LIVE_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
+# Not the 2.5 native-audio preview: it consumes input audio slower than
+# real time, so reply latency grew ~4s per turn (3.7s -> 14s by turn 3).
+GEMINI_LIVE_MODEL = "gemini-3.8-live"
 GEMINI_VOICE = "Aoede"          # warm female voice, works well for Hindi
 GEMINI_LANGUAGE = "hi-IN"       # primary; the prompt allows English too
 

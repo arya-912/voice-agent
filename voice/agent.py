@@ -36,6 +36,7 @@ from voice.dialer import dial_sip_participant
 from voice.flow import RecoveryAgent
 from voice.outcome import write_call_audit
 from voice.recording import recording_url, start_recording, stop_recording
+from voice.turn_timing import TurnTimer
 
 load_dotenv()
 logger = logging.getLogger("voice.agent")
@@ -88,6 +89,10 @@ async def entrypoint(ctx) -> None:  # ctx: livekit.agents.JobContext
         voice=config.GEMINI_VOICE, language=config.GEMINI_LANGUAGE, temperature=0.6,
         input_audio_transcription=genai_types.AudioTranscriptionConfig(),
         output_audio_transcription=genai_types.AudioTranscriptionConfig(),
+        # 3.8 defaults to NON_BLOCKING tools, where the model keeps talking
+        # while a tool runs -- it then calls send_retry_link in the same
+        # breath as asking "abhi bhej doon?", i.e. before consent.
+        tool_behavior=genai_types.Behavior.BLOCKING,
         # Cut turn-taking latency: the default silence window before the
         # model decides the customer is done talking is noticeably laggy
         # on a live phone call. Shorter silence + higher-sensitivity
@@ -103,6 +108,7 @@ async def entrypoint(ctx) -> None:  # ctx: livekit.agents.JobContext
         ),
     )
     session = AgentSession(llm=model)
+    turn_timer = TurnTimer(session)
 
     # transcript: both sides. The agent's own turns come through
     # conversation_item_added; the customer's come through
@@ -160,8 +166,12 @@ async def entrypoint(ctx) -> None:  # ctx: livekit.agents.JobContext
     egress_id = await start_recording(ctx, event.event_id)
 
     await session.start(agent=agent, room=ctx.room)
+    turn_timer.attach()
+    # user_input, not instructions=: the Google plugin sends `instructions` as a
+    # model-role turn, which gemini-3.8-live treats as already said and
+    # answers with an empty turn (the greeting got dropped).
     await session.generate_reply(
-        instructions="Call ki shuruaat karo: apna intro do aur identity confirm karo."
+        user_input="Call ki shuruaat karo: apna intro do aur identity confirm karo."
     )
 
     try:
