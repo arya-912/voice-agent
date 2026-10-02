@@ -255,7 +255,14 @@ async def _wait_for_end(session, agent: RecoveryAgent, speaking: dict) -> None:
                 if not speaking["now"]:
                     break
                 await asyncio.sleep(0.5)
-            await asyncio.sleep(1)  # brief buffer past the last audio frame
+            # Gemini sometimes auto-narrates the end_call tool's own return
+            # value right after ("a tool result wants no reply, but Gemini
+            # will answer it anyway") -- interrupt immediately so that
+            # spurious reply can't start playing before we tear down.
+            try:
+                await session.interrupt(force=True)
+            except Exception:
+                pass
             return
         await asyncio.sleep(0.5)
 
