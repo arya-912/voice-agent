@@ -18,4 +18,7 @@ venv/
 
 # generated artifacts
 data/fixtures/events.json
+
+# local worker/call logs (voice/call_logging.py) -- debug-only, not source
+logs/
 exports/
