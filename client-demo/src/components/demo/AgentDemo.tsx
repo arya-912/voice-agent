@@ -33,7 +33,9 @@ export function AgentDemo({
   const [scenarioId, setScenarioId] = useState(
     scenarios.some((s) => s.id === initialScenario) ? initialScenario! : defaultScenarioId,
   );
-  const [voice, setVoice] = useState(false);
+  // On by default: the "Start call" click is the user gesture browsers need before speaking.
+  const [voice, setVoice] = useState(true);
+  const [ttsSupported, setTtsSupported] = useState(true);
   const [showTranslation, setShowTranslation] = useState(true);
   const call = useAgentCall({ voice });
   const scenario = scenarios.find((s) => s.id === scenarioId)!;
@@ -43,6 +45,8 @@ export function AgentDemo({
   useEffect(() => {
     setSimulatedFailure(simulate ?? "none");
   }, [simulate]);
+
+  useEffect(() => setTtsSupported("speechSynthesis" in window), []);
 
   async function download() {
     let rows: TranscriptEntry[] = call.transcript;
@@ -148,7 +152,7 @@ export function AgentDemo({
             checked={voice}
             onChange={setVoice}
             label="Read agent lines aloud"
-            hint="Uses your browser's voice, not the production Gemini voice."
+            hint="Uses your browser's built-in voice, not the production AI voice. Also toggled by the speaker button on the call."
           />
         </fieldset>
       </aside>
@@ -169,7 +173,19 @@ export function AgentDemo({
                 <p className="truncate text-xs text-console-muted">AI voice agent · calling {scenario.customerName} · {scenario.language}</p>
               </div>
             </div>
-            <div className="flex shrink-0 flex-col items-end gap-1">
+            <div className="flex shrink-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setVoice((v) => !v)}
+              disabled={!ttsSupported}
+              aria-pressed={voice && ttsSupported}
+              aria-label={!ttsSupported ? "Voice isn't supported in this browser" : voice ? "Mute agent voice" : "Unmute agent voice"}
+              title={!ttsSupported ? "Voice isn't supported in this browser" : voice ? "Mute agent voice" : "Unmute agent voice"}
+              className="inline-flex size-9 items-center justify-center rounded-full bg-console-3 text-console-text ring-1 ring-console-line transition-colors hover:bg-console-line disabled:opacity-40"
+            >
+              <Icon name={voice && ttsSupported ? "volume" : "volumeOff"} className="size-4" />
+            </button>
+            <div className="flex flex-col items-end gap-1">
               <span role="status" className={`inline-flex items-center gap-1.5 text-xs font-medium ${meta.tone}`}>
                 <Icon name={meta.icon} className="size-3.5" />
                 {meta.label}
@@ -177,6 +193,7 @@ export function AgentDemo({
               <span className="font-mono text-xs text-console-muted tabular-nums" aria-label="Call duration">
                 {formatDuration(call.elapsed)}
               </span>
+            </div>
             </div>
           </header>
 
