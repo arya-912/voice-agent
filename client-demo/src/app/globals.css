@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. One light theme for the marketing site; the product
+ * "console" surfaces (demo, dashboard preview) use the dark ink tokens.
+ */
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+
+  --color-paper: #f7f7f4;
+  --color-surface: #ffffff;
+  --color-line: #e3e3dc;
+  --color-line-strong: #cfcfc6;
+
+  --color-ink: #0c1322;
+  --color-ink-2: #2f3a4d;
+  --color-muted: #5d6779;
+
+  --color-brand: #0f6b4f;
+  --color-brand-strong: #0a5540;
+  --color-brand-soft: #e2f1e9;
+  --color-brand-tint: #f1f8f4;
+
+  --color-console: #0c1322;
+  --color-console-2: #131c2f;
+  --color-console-3: #1c2740;
+  --color-console-line: #26324d;
+  --color-console-text: #e6e9f0;
+  --color-console-muted: #94a0b8;
+  --color-live: #3ddc97;
+
+  --color-good: #15803d;
+  --color-warn: #b45309;
+  --color-bad: #b91c1c;
+
+  --shadow-card: 0 1px 2px rgb(12 19 34 / 0.04), 0 4px 16px rgb(12 19 34 / 0.05);
+  --shadow-lift: 0 2px 4px rgb(12 19 34 / 0.05), 0 12px 32px rgb(12 19 34 / 0.09);
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-brand-soft);
+  color: var(--color-ink);
+}
+
+/* Visible, consistent keyboard focus everywhere. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---------------------------------------------------------------- */
+/* Voice visualizer: bars scale on the Y axis; amplitude per state.  */
+/* ---------------------------------------------------------------- */
+@keyframes vv-bar {
+  0%, 100% { transform: scaleY(var(--vv-min, 0.15)); }
+  50% { transform: scaleY(var(--vv-max, 1)); }
+}
+
+.vv-bar {
+  transform-origin: center;
+  transform: scaleY(0.12);
+  transition: transform 300ms ease;
+}
+
+.vv-active .vv-bar {
+  animation: vv-bar var(--vv-speed, 900ms) ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.45; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.pulse-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid currentColor;
+  animation: pulse-ring 1.6s ease-out infinite;
+}
+
+@keyframes dot-bounce {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+
+.thinking-dot {
+  animation: dot-bounce 1.2s ease-in-out infinite;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-up {
+  animation: fade-up 320ms ease-out both;
+}
+
+/* Section reveal (driven by components/Reveal.tsx). */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 600ms ease, transform 600ms ease;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .vv-active .vv-bar,
+  .pulse-ring::after,
+  .thinking-dot,
+  .animate-fade-up {
+    animation: none !important;
+  }
+  .vv-active .vv-bar { transform: scaleY(0.5); }
+  .reveal { opacity: 1; transform: none; transition: none; }
+}
