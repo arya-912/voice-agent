@@ -3,14 +3,14 @@ import { Icon } from "../Icon";
 import { ButtonLink, Container } from "../ui";
 
 const proof = [
-  { icon: "languages", text: "Natural Hindi–English code-switching" },
-  { icon: "shieldCheck", text: "Guardrails enforced in code, not just prompts" },
-  { icon: "list", text: "Every decision on an append-only audit trail" },
+  { icon: "phoneOutgoing", text: "Calls new leads within minutes" },
+  { icon: "target", text: "Qualifies, books and follows up" },
+  { icon: "headset", text: "Hands over to your team when needed" },
 ] as const;
 
 export function Hero() {
   return (
-    <section id="product" aria-labelledby="hero-title" className="relative overflow-hidden">
+    <section id="top" aria-labelledby="hero-title" className="relative overflow-hidden">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(60%_60%_at_70%_20%,var(--color-brand-soft),transparent_70%)]"
@@ -19,23 +19,23 @@ export function Hero() {
         <div>
           <p className="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1 text-xs font-medium text-ink-2 ring-1 ring-line">
             <span className="size-1.5 rounded-full bg-brand" aria-hidden />
-            Voice agents for payment recovery
+            AI voice agents for businesses
           </p>
           <h1
             id="hero-title"
             className="mt-5 text-4xl leading-[1.08] font-semibold tracking-tight text-balance text-ink sm:text-5xl lg:text-[3.5rem]"
           >
-            Recover failed payments with a voice your customers trust.
+            AI voice agents that talk to your customers.
           </h1>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-pretty text-muted">
-            Razorcovery calls customers whose payment failed, explains what happened in natural Hinglish, and sends a secure retry link. It never asks for card details and stops the moment someone says no.
+            Automate outbound calls, lead follow-ups, customer conversations and repetitive calling work with AI voice agents built around your business. They call, understand the reply, and take the next step.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <ButtonLink href="/demo" size="lg" icon>
-              See the demo
+              Try the AI demo
             </ButtonLink>
             <ButtonLink href="/contact" size="lg" variant="secondary">
-              Talk to us
+              Book a consultation
             </ButtonLink>
           </div>
           <ul className="mt-10 grid gap-3 text-sm text-ink-2 sm:grid-cols-3 sm:gap-4">

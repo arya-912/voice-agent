@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
+/* Dark mode follows a `.dark` class on <html> (set by the theme script in layout.tsx). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
- * Design tokens. One light theme for the marketing site; the product
- * "console" surfaces (demo, dashboard preview) use the dark ink tokens.
+ * Design tokens. Light by default, overridden under `.dark` below; the
+ * product "console" surfaces (demo, dashboard preview) stay dark in both.
  */
 @theme {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
@@ -40,6 +43,31 @@
 
 :root {
   color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
+
+  --color-paper: #0a0e16;
+  --color-surface: #111827;
+  --color-line: #222c40;
+  --color-line-strong: #334058;
+
+  --color-ink: #e8ebf2;
+  --color-ink-2: #c2c9d6;
+  --color-muted: #8f9ab0;
+
+  --color-brand: #23a172;
+  --color-brand-strong: #5fd1a5;
+  --color-brand-soft: #0f2a21;
+  --color-brand-tint: #0d1f1a;
+
+  --color-good: #4ade80;
+  --color-warn: #fbbf24;
+  --color-bad: #f87171;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.35), 0 12px 32px rgb(0 0 0 / 0.45);
 }
 
 html {

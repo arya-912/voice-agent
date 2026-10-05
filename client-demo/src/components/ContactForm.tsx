@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { industries } from "@/data/industries";
 import { Icon } from "./Icon";
 
 type Fields = {
@@ -8,17 +9,25 @@ type Fields = {
   company: string;
   email: string;
   phone: string;
+  industry: string;
   useCase: string;
   message: string;
 };
 
-const empty: Fields = { name: "", company: "", email: "", phone: "", useCase: "", message: "" };
+const empty: Fields = { name: "", company: "", email: "", phone: "", industry: "", useCase: "", message: "" };
+
+export const industryOptions = [...industries.map((i) => i.name), "Other"];
 
 export const useCaseOptions = [
-  "Failed card / UPI payments",
-  "Abandoned checkouts",
-  "Subscription & auto-pay failures",
-  "Something else",
+  "Calling and following up with new leads",
+  "Qualifying leads",
+  "Appointment, visit or booking calls",
+  "Reminders and customer notifications",
+  "Payment or recovery follow-ups",
+  "Customer feedback and service follow-ups",
+  "AI chatbot",
+  "Website, software or dashboard",
+  "Not sure yet",
 ];
 
 /** Optional. When unset, the form validates and shows a demo-mode confirmation without sending. */
@@ -33,7 +42,8 @@ function validate(f: Fields): Partial<Record<keyof Fields, string>> {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(f.email.trim())) e.email = "Enter a valid email address.";
   else if (FREE_MAIL.test(f.email)) e.email = "Please use your work email.";
   if (f.phone.trim() && !/^\+?[\d\s()-]{8,16}$/.test(f.phone.trim())) e.phone = "Enter a valid phone number, or leave it blank.";
-  if (!f.useCase) e.useCase = "Choose the closest use case.";
+  if (!f.industry) e.industry = "Choose your industry, or Other.";
+  if (!f.useCase) e.useCase = "Choose the closest option.";
   if (f.message.length > 2000) e.message = "Please keep the message under 2,000 characters.";
   return e;
 }
@@ -87,7 +97,7 @@ export function ContactForm() {
         <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted">
           {state === "sent"
             ? "Our team will reply to your work email within one business day."
-            : "Demo mode: this form isn't connected to a backend yet, so nothing was sent. Share your details with your Razorcovery contact directly."}
+            : "Demo mode: this form isn't connected to a backend yet, so nothing was sent. Please share your details with your contact on our team directly."}
         </p>
         <button
           type="button"
@@ -153,8 +163,20 @@ export function ContactForm() {
           <input {...field("phone")} type="tel" autoComplete="tel" inputMode="tel" placeholder="+91 98xxx xxxxx" className={`${field("phone").className} h-11`} />
           <Err k="phone" />
         </div>
-        <div className="sm:col-span-2">
-          <Label k="useCase">What do you want to recover?</Label>
+        <div>
+          <Label k="industry">Industry</Label>
+          <select {...field("industry")} className={`${field("industry").className} h-11`}>
+            <option value="" disabled>
+              Choose one
+            </option>
+            {industryOptions.map((o) => (
+              <option key={o}>{o}</option>
+            ))}
+          </select>
+          <Err k="industry" />
+        </div>
+        <div>
+          <Label k="useCase">What do you want to automate?</Label>
           <select {...field("useCase")} className={`${field("useCase").className} h-11`}>
             <option value="" disabled>
               Choose one
@@ -170,7 +192,7 @@ export function ContactForm() {
           <textarea
             {...field("message")}
             rows={4}
-            placeholder="Roughly how many failed payments do you see a month, and what's the typical order value?"
+            placeholder="What does your team do by phone today? Roughly how many calls a week, and what tools do you use?"
             className={`${field("message").className} py-2.5`}
           />
           <Err k="message" />
@@ -178,7 +200,7 @@ export function ContactForm() {
       </div>
 
       {state === "failed" && (
-        <p role="alert" className="mt-5 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800 ring-1 ring-red-700/20">
+        <p role="alert" className="mt-5 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800 ring-1 ring-red-700/20 dark:bg-red-400/10 dark:text-red-300 dark:ring-red-400/25">
           <Icon name="alert" className="size-4" />
           We couldn&apos;t send your request. Please try again in a moment.
         </p>
@@ -189,9 +211,9 @@ export function ContactForm() {
         <button
           type="submit"
           disabled={state === "sending"}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-ink px-6 text-sm font-medium whitespace-nowrap text-white hover:bg-ink-2 disabled:opacity-60"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-ink px-6 text-sm font-medium whitespace-nowrap text-paper hover:bg-ink-2 disabled:opacity-60"
         >
-          {state === "sending" ? "Sending…" : "Request a walkthrough"}
+          {state === "sending" ? "Sending…" : "Discuss your use case"}
           <Icon name="arrowRight" className="size-4" />
         </button>
       </div>

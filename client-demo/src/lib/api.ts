@@ -2,17 +2,18 @@
  * The demo site's single integration boundary.
  *
  * Components and hooks only call the functions exported here. Today they
- * are backed by an in-browser simulator (lib/mockAgent.ts) and sample
- * analytics (data/analytics.ts), because the core backend does not expose
- * a public, browser-safe session API: its JSON endpoints sit behind a
- * session-cookie login and real calls go over PSTN via LiveKit SIP.
+ * are backed by an in-browser simulator (lib/mockAgent.ts, scenarios in
+ * data/demoScenarios.ts) and sample analytics (data/analytics.ts). The
+ * website demo does NOT call the production AI backend: the core does not
+ * expose a public, browser-safe session API (its JSON endpoints sit behind
+ * a session-cookie login and real calls go over PSTN via LiveKit SIP).
  *
  * To go live, implement a provider with the same `VoiceAgentProvider`
  * shape that calls your backend through `request()`, and return it from
  * `provider()`. See client-demo/README.md, "Connecting the real backend".
  */
 import { sampleCalls, sampleSummary } from "@/data/analytics";
-import { scenarios } from "@/data/demoConversations";
+import { DEFAULT_SCENARIO, scenarios } from "@/data/demoScenarios";
 import type {
   AgentSession,
   AgentTurn,
@@ -115,6 +116,11 @@ export const getConversation = (sessionId: string) =>
   withTimeout(provider().getConversation(sessionId));
 
 export const listScenarios = (): DemoScenario[] => scenarios;
+
+export const defaultScenarioId = DEFAULT_SCENARIO;
+
+/** True while the demo runs on the in-browser simulator rather than a real backend. */
+export const DEMO_IS_SIMULATED = true;
 
 /* ------------------------------------------------------------------ */
 /* Analytics                                                           */

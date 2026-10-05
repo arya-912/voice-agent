@@ -6,16 +6,18 @@ import { Icon } from "./Icon";
 import { VoiceVisualizer } from "./VoiceVisualizer";
 
 type Beat =
-  | { kind: "agent" | "customer"; text: string; en: string }
-  | { kind: "tool"; text: string };
+  | { kind: "agent" | "customer"; text: string }
+  | { kind: "tool"; text: string; action: string };
 
 const beats: Beat[] = [
-  { kind: "agent", text: "Namaste! Kya main Rohan Mehta se baat kar rahi hoon?", en: "Hello! Am I speaking with Rohan Mehta?" },
-  { kind: "customer", text: "Haan ji, boliye.", en: "Yes, go ahead." },
-  { kind: "agent", text: "Aapka ₹2,499 ka payment bank ne decline kiya tha. Fresh link bhej doon?", en: "Your bank declined the ₹2,499 payment. Shall I send a fresh link?" },
-  { kind: "customer", text: "Haan, bhej dijiye.", en: "Yes, please send it." },
-  { kind: "tool", text: "send_retry_link · consent captured" },
-  { kind: "agent", text: "Link bhej diya hai, SMS check kijiye.", en: "Link sent. Please check your SMS." },
+  { kind: "agent", text: "Hi, this is Aisha, an AI assistant from Northgate Realty. You enquired about a 2BHK in Whitefield. Are you still looking?" },
+  { kind: "customer", text: "Yes, I am. Something around 85 lakh." },
+  { kind: "agent", text: "Great. And when are you planning to buy?" },
+  { kind: "customer", text: "In the next three months." },
+  { kind: "tool", text: "record_details · budget ₹85L · 3 months", action: "Lead qualified" },
+  { kind: "agent", text: "Would a site visit this Saturday at 11 work for you?" },
+  { kind: "customer", text: "Saturday works." },
+  { kind: "tool", text: "book_appointment · Sat 11:00", action: "Site visit booked" },
 ];
 
 const STEP_MS = 2400;
@@ -40,11 +42,12 @@ export function HeroCallCard() {
   const last = visible[visible.length - 1];
   const done = shown > beats.length;
   const status: CallStatus = done ? "ended" : last?.kind === "agent" ? "speaking" : last?.kind === "customer" ? "listening" : "thinking";
-  const statusText = done ? "Recovered" : status === "speaking" ? "Speaking" : status === "listening" ? "Listening" : "Taking action";
+  const statusText = done ? "Call ended" : status === "speaking" ? "Speaking" : status === "listening" ? "Listening" : "Taking action";
+  const actions = visible.filter((b): b is Extract<Beat, { kind: "tool" }> => b.kind === "tool");
 
   return (
     <figure
-      aria-label="Illustration of a payment-recovery call in progress"
+      aria-label="Illustration of an AI voice agent calling a real-estate lead"
       className="relative w-full overflow-hidden rounded-3xl bg-console text-console-text shadow-lift ring-1 ring-console-line"
     >
       <div className="flex items-center justify-between border-b border-console-line px-5 py-4">
@@ -53,8 +56,8 @@ export function HeroCallCard() {
             <Icon name="wave" className="size-5" strokeWidth={2.25} />
           </span>
           <div>
-            <p className="text-sm font-semibold">Priya · Payment Retry Agent</p>
-            <p className="text-xs text-console-muted">Outbound · +91 98•••• 4417</p>
+            <p className="text-sm font-semibold">Aisha · AI voice agent</p>
+            <p className="text-xs text-console-muted">Outbound · new lead · +91 98•••• 4417</p>
           </div>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-console-3 px-2.5 py-1 text-xs font-medium">
@@ -67,7 +70,7 @@ export function HeroCallCard() {
         <VoiceVisualizer status={reduced ? "speaking" : status} bars={28} className="h-12" />
       </div>
 
-      <ol className="flex h-[300px] flex-col justify-end gap-2.5 overflow-hidden px-5 pt-2 pb-5 [mask-image:linear-gradient(to_bottom,transparent,black_18%)] sm:h-[320px]" aria-live="off">
+      <ol className="flex h-[280px] flex-col justify-end gap-2.5 overflow-hidden px-5 pt-2 pb-4 [mask-image:linear-gradient(to_bottom,transparent,black_18%)] sm:h-[300px]" aria-live="off">
         {visible.map((b, i) =>
           b.kind === "tool" ? (
             <li key={i} className="animate-fade-up flex justify-center">
@@ -78,22 +81,37 @@ export function HeroCallCard() {
             </li>
           ) : (
             <li key={i} className={`animate-fade-up flex ${b.kind === "customer" ? "justify-end" : ""}`}>
-              <div
+              <p
                 className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-snug ${
-                  b.kind === "agent" ? "rounded-tl-sm bg-console-3" : "rounded-tr-sm bg-white text-ink"
+                  b.kind === "agent" ? "rounded-tl-sm bg-console-3" : "rounded-tr-sm bg-white text-console"
                 }`}
               >
-                <p>{b.text}</p>
-                <p className={`mt-1 text-xs ${b.kind === "agent" ? "text-console-muted" : "text-muted"}`}>{b.en}</p>
-              </div>
+                {b.text}
+              </p>
             </li>
           ),
         )}
       </ol>
 
+      <div className="border-t border-console-line px-5 py-3">
+        <p className="text-[11px] font-semibold tracking-wide text-console-muted uppercase">Agent actions</p>
+        <ul className="mt-2 flex min-h-7 flex-wrap gap-2">
+          {actions.length ? (
+            actions.map((a) => (
+              <li key={a.action} className="animate-fade-up inline-flex items-center gap-1.5 rounded-md bg-console-3 px-2 py-1 text-xs">
+                <Icon name="check" className="size-3.5 text-live" strokeWidth={2.5} />
+                {a.action}
+              </li>
+            ))
+          ) : (
+            <li className="py-1 text-xs text-console-muted">Listening for what the customer needs…</li>
+          )}
+        </ul>
+      </div>
+
       <figcaption className="flex items-center justify-between border-t border-console-line bg-console-2 px-5 py-3 text-xs text-console-muted">
-        <span>Illustrative call · fictional customer</span>
-        <span className="font-mono">payment_retry · ₹2,499</span>
+        <span>Illustrative call · fictional business</span>
+        <span className="font-mono">real estate · lead follow-up</span>
       </figcaption>
     </figure>
   );

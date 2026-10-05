@@ -1,24 +1,34 @@
-import { AgentShowcase } from "@/components/sections/AgentShowcase";
-import { AnalyticsPreview } from "@/components/sections/AnalyticsPreview";
-import { Capabilities } from "@/components/sections/Capabilities";
+import { CapabilityStrip } from "@/components/sections/CapabilityStrip";
+import { CaseStudy } from "@/components/sections/CaseStudy";
 import { CTA } from "@/components/sections/CTA";
+import { DemoPreview } from "@/components/sections/DemoPreview";
 import { Hero } from "@/components/sections/Hero";
 import { HowItWorks } from "@/components/sections/HowItWorks";
-import { Integrations } from "@/components/sections/Integrations";
-import { Trust } from "@/components/sections/Trust";
-import { UseCases } from "@/components/sections/UseCases";
+import { Industries } from "@/components/sections/Industries";
+import { IndustryExamples } from "@/components/sections/IndustryExamples";
+import { Solutions } from "@/components/sections/Solutions";
+import { Testimonials } from "@/components/sections/Testimonials";
+import { VoiceAgents } from "@/components/sections/VoiceAgents";
+import { WhyUs } from "@/components/sections/WhyUs";
+import { WhyVoice } from "@/components/sections/WhyVoice";
+import { Workflow } from "@/components/sections/Workflow";
 
 export default function Home() {
   return (
     <>
       <Hero />
-      <Capabilities />
-      <AgentShowcase />
-      <UseCases />
+      <CapabilityStrip />
+      <WhyVoice />
+      <VoiceAgents />
+      <Workflow />
+      <Industries />
+      <IndustryExamples />
+      <DemoPreview />
       <HowItWorks />
-      <Integrations />
-      <AnalyticsPreview />
-      <Trust />
+      <CaseStudy />
+      <Solutions />
+      <WhyUs />
+      <Testimonials />
       <CTA />
     </>
   );

@@ -42,7 +42,7 @@ export async function AnalyticsPreview() {
                 <span className="ml-2 text-sm font-medium text-ink">Recovery dashboard</span>
               </div>
               {ANALYTICS_IS_SAMPLE && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 ring-1 ring-amber-700/20 ring-inset">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 ring-1 ring-amber-700/20 ring-inset dark:bg-amber-400/10 dark:text-amber-300 dark:ring-amber-400/25">
                   <Icon name="alert" className="size-3.5" />
                   Illustrative sample data, not customer results
                 </span>

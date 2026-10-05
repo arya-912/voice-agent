@@ -1,7 +1,12 @@
 "use client";
 
-import { failureTypeLabel, formatInr } from "@/lib/format";
-import type { DemoScenario } from "@/types";
+import type { DemoScenario, ScenarioGroup } from "@/types";
+import { Icon } from "../Icon";
+
+const groups: { id: ScenarioGroup; label: string }[] = [
+  { id: "business", label: "Business scenarios" },
+  { id: "recovery", label: "From our payment-recovery agent" },
+];
 
 export function ScenarioPicker({
   scenarios,
@@ -16,41 +21,50 @@ export function ScenarioPicker({
 }) {
   return (
     <fieldset disabled={disabled} className="disabled:opacity-60">
-      <legend className="text-sm font-semibold text-ink">Choose a scenario</legend>
-      <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-        {scenarios.map((s) => {
-          const checked = s.id === value;
-          return (
-            <label
-              key={s.id}
-              className={`relative flex cursor-pointer flex-col rounded-xl p-4 ring-1 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand ${
-                checked ? "bg-brand-tint ring-brand" : "bg-surface ring-line hover:ring-line-strong"
-              } ${disabled ? "cursor-not-allowed" : ""}`}
-            >
-              <input
-                type="radio"
-                name="scenario"
-                value={s.id}
-                checked={checked}
-                onChange={() => onChange(s.id)}
-                className="sr-only"
-              />
-              <span className="flex items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-ink">{s.title}</span>
-                <span
-                  aria-hidden
-                  className={`flex size-4 shrink-0 items-center justify-center rounded-full ring-1 ${checked ? "bg-brand ring-brand" : "ring-line-strong"}`}
-                >
-                  {checked && <span className="size-1.5 rounded-full bg-white" />}
-                </span>
-              </span>
-              <span className="mt-1 text-xs text-muted">
-                {failureTypeLabel[s.failureType]} · {formatInr(s.amountInr)} · {s.customerName}
-              </span>
-            </label>
-          );
-        })}
-      </div>
+      <legend className="text-sm font-semibold text-ink">Choose a business scenario</legend>
+      {groups.map((g) => {
+        const items = scenarios.filter((s) => s.group === g.id);
+        if (!items.length) return null;
+        return (
+          <div key={g.id} className="mt-3">
+            <p className="text-xs font-medium text-muted">{g.label}</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+              {items.map((s) => {
+                const checked = s.id === value;
+                return (
+                  <label
+                    key={s.id}
+                    className={`relative flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 ring-1 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand ${
+                      checked ? "bg-brand-tint ring-brand" : "bg-surface ring-line hover:ring-line-strong"
+                    } ${disabled ? "cursor-not-allowed" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="scenario"
+                      value={s.id}
+                      checked={checked}
+                      onChange={() => onChange(s.id)}
+                      className="sr-only"
+                    />
+                    <span
+                      aria-hidden
+                      className={`flex size-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${checked ? "bg-brand text-white ring-brand" : "bg-paper text-ink-2 ring-line"}`}
+                    >
+                      <Icon name={s.icon} className="size-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-ink">{s.title}</span>
+                      <span className="block truncate text-xs text-muted">
+                        {s.business} · {s.language}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </fieldset>
   );
 }

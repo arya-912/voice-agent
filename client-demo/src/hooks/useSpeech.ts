@@ -19,10 +19,10 @@ export function useSpeech(enabled: boolean) {
 
   useEffect(() => setSupported("speechSynthesis" in window), []);
 
-  const pickVoice = useCallback(() => {
+  const pickVoice = useCallback((language: "English" | "Hinglish") => {
     const voices = window.speechSynthesis.getVoices();
     return (
-      voices.find((v) => v.lang === "hi-IN") ??
+      (language === "Hinglish" ? voices.find((v) => v.lang === "hi-IN") : undefined) ??
       voices.find((v) => v.lang === "en-IN") ??
       voices.find((v) => v.lang.startsWith("en")) ??
       null
@@ -30,12 +30,12 @@ export function useSpeech(enabled: boolean) {
   }, []);
 
   const speak = useCallback(
-    (text: string) =>
+    (text: string, language: "English" | "Hinglish" = "Hinglish") =>
       new Promise<void>((resolve) => {
         if (!supported || !enabledRef.current) return resolve();
         try {
           const u = new SpeechSynthesisUtterance(text.replace(/₹/g, "rupees "));
-          const v = pickVoice();
+          const v = pickVoice(language);
           if (v) {
             u.voice = v;
             u.lang = v.lang;

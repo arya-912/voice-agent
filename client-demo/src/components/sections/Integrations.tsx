@@ -19,7 +19,7 @@ export function Integrations() {
           id="integrations-title"
           eyebrow="Integrations"
           title="Runs on a proven real-time voice stack."
-          description="Only integrations the product actually uses are listed. Anything not yet verified end to end is labelled."
+          description="The stack behind the payment-recovery agent. Only integrations it actually uses are listed, and anything not yet verified end to end is labelled."
         />
         <Reveal className="mt-12 space-y-8">
           {groups.map((g) => (

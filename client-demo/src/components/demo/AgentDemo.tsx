@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAgentCall } from "@/hooks/useAgentCall";
-import { getConversation, listScenarios, setSimulatedFailure, type SimulatedFailure } from "@/lib/api";
+import { defaultScenarioId, getConversation, listScenarios, setSimulatedFailure, type SimulatedFailure } from "@/lib/api";
 import { formatDuration, formatInr } from "@/lib/format";
 import type { CallStatus, TranscriptEntry } from "@/types";
 import { Icon } from "../Icon";
@@ -11,8 +11,6 @@ import { CallControls } from "./CallControls";
 import { OutcomePanel } from "./OutcomePanel";
 import { ScenarioPicker } from "./ScenarioPicker";
 import { Transcript } from "./Transcript";
-
-const AGENT_NAME = "Priya";
 
 const statusMeta: Record<CallStatus, { label: string; icon: React.ComponentProps<typeof Icon>["name"]; tone: string }> = {
   ready: { label: "Ready", icon: "phone", tone: "text-console-muted" },
@@ -33,7 +31,7 @@ export function AgentDemo({
 }) {
   const scenarios = listScenarios();
   const [scenarioId, setScenarioId] = useState(
-    scenarios.some((s) => s.id === initialScenario) ? initialScenario! : scenarios[0].id,
+    scenarios.some((s) => s.id === initialScenario) ? initialScenario! : defaultScenarioId,
   );
   const [voice, setVoice] = useState(false);
   const [showTranslation, setShowTranslation] = useState(true);
@@ -57,13 +55,13 @@ export function AgentDemo({
       }
     }
     const blob = new Blob(
-      [JSON.stringify({ scenario, result: call.result, simulated: true, transcript: rows }, null, 2)],
+      [JSON.stringify({ scenario, result: call.result, collected: call.collected, simulated: true, transcript: rows }, null, 2)],
       { type: "application/json" },
     );
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `razorcovery-demo-${scenario.id}.json`;
+    a.download = `voice-agent-demo-${scenario.id}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -85,26 +83,56 @@ export function AgentDemo({
 
       <aside aria-label="Call context and settings" className="order-3 space-y-6 lg:order-none lg:col-start-1 lg:row-start-2">
         <div className="rounded-xl bg-surface p-4 ring-1 ring-line">
-          <p className="text-xs font-semibold tracking-wide text-muted uppercase">Event context</p>
+          <p className="text-xs font-semibold tracking-wide text-muted uppercase">Call context</p>
           <dl className="mt-3 space-y-2.5 text-sm">
             <div className="flex justify-between gap-3">
-              <dt className="text-muted">Merchant</dt>
-              <dd className="text-right text-ink">{scenario.merchant}</dd>
+              <dt className="text-muted">Business</dt>
+              <dd className="text-right text-ink">{scenario.business}</dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt className="text-muted">Amount</dt>
-              <dd className="text-right text-ink tabular-nums">{formatInr(scenario.amountInr)}</dd>
+              <dt className="text-muted">Customer</dt>
+              <dd className="text-right text-ink">{scenario.customerName}</dd>
+            </div>
+            {scenario.amountInr !== undefined && (
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted">Amount</dt>
+                <dd className="text-right text-ink tabular-nums">{formatInr(scenario.amountInr)}</dd>
+              </div>
+            )}
+            <div>
+              <dt className="text-muted">Why the agent is calling</dt>
+              <dd className="mt-0.5 text-ink-2">{scenario.trigger}</dd>
             </div>
             <div>
-              <dt className="text-muted">What happened</dt>
-              <dd className="mt-0.5 text-ink-2">{scenario.context}</dd>
+              <dt className="text-muted">Goal</dt>
+              <dd className="mt-0.5 text-ink-2">{scenario.goal}</dd>
             </div>
-            <div>
-              <dt className="text-muted">Routing decision</dt>
-              <dd className="mt-0.5 font-mono text-xs leading-relaxed text-ink-2">{scenario.routingReason}</dd>
-            </div>
+            {scenario.routingReason && (
+              <div>
+                <dt className="text-muted">Routing decision</dt>
+                <dd className="mt-0.5 font-mono text-xs leading-relaxed text-ink-2">{scenario.routingReason}</dd>
+              </div>
+            )}
           </dl>
         </div>
+
+        {scenario.group === "business" && (
+          <div className="rounded-xl bg-surface p-4 ring-1 ring-line" aria-live="polite">
+            <p className="text-xs font-semibold tracking-wide text-muted uppercase">Details captured</p>
+            {Object.keys(call.collected).length ? (
+              <dl className="mt-3 space-y-2 text-sm">
+                {Object.entries(call.collected).map(([k, v]) => (
+                  <div key={k} className="flex justify-between gap-3">
+                    <dt className="text-muted">{k}</dt>
+                    <dd className="text-right font-medium text-ink">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="mt-2 text-sm text-muted">Answers appear here as the agent collects them.</p>
+            )}
+          </div>
+        )}
 
         <fieldset className="space-y-3 rounded-xl bg-surface p-4 ring-1 ring-line">
           <legend className="sr-only">Demo settings</legend>
@@ -113,6 +141,7 @@ export function AgentDemo({
             checked={showTranslation}
             onChange={setShowTranslation}
             label="Show English translation"
+            hint="For the Hinglish scenarios."
           />
           <Toggle
             id="toggle-voice"
@@ -136,8 +165,8 @@ export function AgentDemo({
                 {inCall && <span aria-hidden className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full bg-live ring-2 ring-console" />}
               </span>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-white">{AGENT_NAME} · {scenario.merchant}</p>
-                <p className="truncate text-xs text-console-muted">Calling {scenario.customerName} · Hinglish</p>
+                <p className="truncate text-sm font-semibold text-white">{scenario.agentName} · {scenario.business}</p>
+                <p className="truncate text-xs text-console-muted">AI voice agent · calling {scenario.customerName} · {scenario.language}</p>
               </div>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1">
@@ -155,7 +184,7 @@ export function AgentDemo({
             <VoiceVisualizer status={call.status} bars={36} className="h-14" barClassName={call.status === "listening" ? "bg-white" : "bg-live"} />
           </div>
 
-          <Transcript entries={call.transcript} status={call.status} agentName={AGENT_NAME} showTranslation={showTranslation} />
+          <Transcript entries={call.transcript} status={call.status} agentName={scenario.agentName} showTranslation={showTranslation} />
 
           {call.status === "error" && call.error && (
             <div role="alert" className="mx-4 mb-4 rounded-xl border border-red-400/30 bg-red-500/10 p-4 sm:mx-6">
@@ -167,7 +196,7 @@ export function AgentDemo({
               <button
                 type="button"
                 onClick={() => call.start(scenarioId)}
-                className="mt-3 inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-sm font-medium text-ink hover:bg-white/90"
+                className="mt-3 inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-sm font-medium text-console hover:bg-white/90"
               >
                 <Icon name="restart" className="size-4" />
                 {call.error.retryable ? "Try again" : "Start a new call"}
@@ -180,6 +209,8 @@ export function AgentDemo({
               <CallControls
                 status={call.status}
                 replies={call.replies}
+                agentName={scenario.agentName}
+                sampleReply={scenario.sampleReply}
                 onReply={(r) => call.respond({ replyId: r.id }, r.text, r.translation)}
                 onText={(t) => call.respond({ text: t }, t)}
               />
@@ -205,7 +236,7 @@ export function AgentDemo({
                   <Icon name="phone" className="size-5" />
                   {call.status === "ended" ? "Call again" : "Start call"}
                 </button>
-                <p className="text-xs text-console-muted">Scripted simulation of the production call flow</p>
+                <p className="text-xs text-console-muted">Simulated call · runs in your browser, not on our AI backend</p>
               </div>
             )
           )}
@@ -215,6 +246,7 @@ export function AgentDemo({
           <OutcomePanel
             result={call.result}
             scenario={scenario}
+            collected={call.collected}
             transcript={call.transcript}
             onRestart={() => call.start(scenarioId)}
             onDownload={download}

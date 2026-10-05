@@ -1,62 +1,100 @@
-import type { Guardrail, Step } from "@/types";
+import type { Guardrail, Reason, Step } from "@/types";
 
+/** How we work with a client. Custom builds, not a one-size-fits-all bot. */
 export const steps: Step[] = [
   {
-    title: "Define the agent",
-    description: "Set the agent's name, tone and call flow for your brand.",
+    title: "Understand your workflow",
+    description: "We look at what your team does manually today: who they call, what they ask and what happens next.",
+    icon: "eye",
+    detail: "We start from one high-volume, repetitive call type.",
+  },
+  {
+    title: "Design the AI agent",
+    description: "We write the conversation flow, business rules and the actions the agent is allowed to take.",
     icon: "pen",
-    detail: "Compliance guardrails are appended automatically and can't be edited away.",
+    detail: "You review the script and the guardrails before anything goes live.",
   },
   {
-    title: "Upload failed payments",
-    description: "Drop in a CSV or XLSX sheet of payments that failed. Columns are detected for you.",
-    icon: "upload",
-    detail: "Rejected rows are listed with a reason, so nothing is dropped silently.",
+    title: "Connect your systems",
+    description: "We connect the agent to your CRM, sheets, calendars, dashboards or database, wherever the work happens.",
+    icon: "plug",
+    detail: "Only the integrations you need, nothing more.",
   },
   {
-    title: "Route and call",
-    description: "Each payment gets a call, an SMS or a link, based on failure type and amount.",
-    icon: "phone",
-    detail: "Stopping rules are checked before dialing and again during the call.",
-  },
-  {
-    title: "Monitor and improve",
-    description: "Watch the batch live, read transcripts and track recovery rate and cost.",
+    title: "Deploy & improve",
+    description: "We launch the agent, review real conversations and outcomes with you, and keep improving it.",
     icon: "chart",
-    detail: "Every number comes from the append-only audit trail.",
+    detail: "Every call has a transcript and an outcome you can check.",
   },
 ];
 
-/** Mirrors voice/prompt.py GUARDRAILS + decision/stopping_rules.py. */
-export const guardrails: Guardrail[] = [
+/** "Why businesses choose us." No invented certifications, counts or percentages. */
+export const whyUs: Reason[] = [
   {
-    title: "Never asks for card, CVV, OTP or UPI PIN",
-    description: "The agent only sends a secure link that the customer uses themselves.",
+    title: "Built around your business",
+    description: "Your questions, your offers, your tone. Not a generic script with your logo on it.",
+    icon: "building",
+  },
+  {
+    title: "Follows your actual process",
+    description: "The agent works through the same steps and rules your team would, and only takes the actions you allow.",
+    icon: "route",
+  },
+  {
+    title: "Humans stay in the loop",
+    description: "The agent handles the repetitive calls. Complex, sensitive or high-value conversations go to your people.",
+    icon: "headset",
+  },
+  {
+    title: "Connected to your systems",
+    description: "Answers and outcomes go into the tools you already use, so nobody has to copy them across.",
+    icon: "plug",
+  },
+  {
+    title: "Every conversation is reviewable",
+    description: "Transcripts and outcomes for each call, so you can see what's working and what to change.",
+    icon: "eye",
+  },
+  {
+    title: "We've built it for real",
+    description: "Our payment-recovery agent places real phone calls with business rules and an audit trail.",
+    icon: "shieldCheck",
+  },
+];
+
+/**
+ * Responsible-design safeguards. These are implemented in the Razorcovery
+ * payment-recovery agent; for new clients they are configured per project.
+ */
+export const safeguards: Guardrail[] = [
+  {
+    title: "Never asks for sensitive payment details",
+    description: "No card numbers, CVV, OTP or UPI PIN. Payments happen on a secure link the customer opens themselves.",
     icon: "lock",
   },
   {
-    title: "“Don't call me again” is final",
-    description: "A refusal fires a tool that blocks every channel for that customer. No more persuasion.",
+    title: "“Don't call me again” is respected",
+    description: "An opt-out is recorded as an action, and the customer isn't contacted again.",
     icon: "ban",
   },
   {
-    title: "At most 2 call attempts",
-    description: "After that, outreach is downgraded to a non-intrusive SMS.",
+    title: "Limits on how often it calls",
+    description: "A maximum number of attempts per customer, after which it stops or switches to a gentler channel.",
     icon: "repeat",
   },
   {
-    title: "Calls only 9am–7pm local time",
-    description: "The window is evaluated in the customer's own timezone, not the server's.",
+    title: "Calls only during set hours",
+    description: "A calling window checked in the customer's own time zone before every call.",
     icon: "clock",
   },
   {
     title: "Honest about being an AI",
-    description: "If asked directly, the agent says it is an AI assistant. It never invents discounts or deadlines.",
+    description: "The agent says it is an AI assistant, and doesn't invent offers, discounts or deadlines.",
     icon: "bot",
   },
   {
-    title: "Merchant's own customers only",
-    description: "Every batch needs a consent attestation before a single call is placed.",
-    icon: "shieldCheck",
+    title: "A record of every decision",
+    description: "Each call, action and outcome is logged, so you can audit what happened and why.",
+    icon: "list",
   },
 ];

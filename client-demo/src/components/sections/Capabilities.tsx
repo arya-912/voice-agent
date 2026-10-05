@@ -11,9 +11,9 @@ export function Capabilities() {
       <Container>
         <SectionHeading
           id="capabilities-title"
-          eyebrow="Capabilities"
+          eyebrow="What we built"
           title="Everything a recovery call needs, built in."
-          description="Each live capability below runs in the current product. Work in progress is labelled as such."
+          description="Each live capability below runs in the Razorcovery implementation today, and the card names the module it lives in. Work in progress is labelled as such."
         />
         <Reveal className="mt-12">
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

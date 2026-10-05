@@ -1,7 +1,22 @@
-import type { CallResult, DemoScenario, ReplyOption, TurnEvent } from "@/types";
+import type { CallResult, DemoScenario, FailureType, TurnEvent } from "@/types";
+import {
+  ACK,
+  AI_Q,
+  BUSY,
+  CARD,
+  HARD_STOP,
+  NO_SOFT,
+  PRIORITY,
+  PROMISE,
+  WRONG,
+  YES,
+  type Script,
+  type ScriptNode,
+  type ScriptReply,
+} from "./demoScript";
 
 /**
- * Scripted call flows for the /demo simulator.
+ * Razorcovery payment-recovery calls for the /demo simulator.
  *
  * The script follows the real workflow in voice/prompt.py (identity check →
  * explain → offer → consent/refusal → close → end_call) and fires the same
@@ -11,59 +26,14 @@ import type { CallResult, DemoScenario, ReplyOption, TurnEvent } from "@/types";
  * All customers and merchants below are fictional.
  */
 
-export const AGENT_NAME = "Priya";
+export const RECOVERY_AGENT_NAME = "Priya";
 
-export const scenarios: DemoScenario[] = [
-  {
-    id: "payment_retry",
-    title: "Declined card payment",
-    failureType: "payment_retry",
-    customerName: "Rohan Mehta",
-    merchant: "Kavya Home Store",
-    amountInr: 2499,
-    context: "Card payment declined by the issuing bank (card_declined). First call attempt.",
-    routingReason: "payment_retry, amount ₹2,499 ≥ ₹1,500 → voice",
-  },
-  {
-    id: "checkout_abandonment",
-    title: "Abandoned high-value cart",
-    failureType: "checkout_abandonment",
-    customerName: "Ananya Iyer",
-    merchant: "Saanjh Living",
-    amountInr: 4200,
-    context: "Customer closed the checkout before paying (checkout_closed). Order still reserved.",
-    routingReason: "checkout_abandonment, cart ₹4,200 ≥ ₹3,000 → voice",
-  },
-  {
-    id: "mandate_failure",
-    title: "Failed subscription auto-pay",
-    failureType: "mandate_failure",
-    customerName: "Vikram Singh",
-    merchant: "StreamBox Premium",
-    amountInr: 1999,
-    context: "Monthly mandate debit failed (mandate_insufficient_funds).",
-    routingReason: "mandate_failure (insufficient funds), ₹1,999 ≥ ₹1,500 → voice",
-  },
-];
-
-/** A reply the "customer" (the visitor) can give, plus how to recognise it typed. */
-export interface ScriptReply extends ReplyOption {
-  next: string;
-  match: RegExp;
-}
-
-export interface ScriptNode {
-  events: TurnEvent[];
-  replies?: ScriptReply[];
-  /** Set on terminal nodes. */
-  result?: CallResult;
-}
-
-export type Script = Record<string, ScriptNode>;
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
-const EXPLAIN: Record<DemoScenario["failureType"], (s: DemoScenario) => TurnEvent[]> = {
+type RecoveryScenario = DemoScenario & { failureType: FailureType; amountInr: number };
+
+const EXPLAIN: Record<FailureType, (s: RecoveryScenario) => TurnEvent[]> = {
   payment_retry: (s) => [
     {
       kind: "say",
@@ -102,36 +72,26 @@ const EXPLAIN: Record<DemoScenario["failureType"], (s: DemoScenario) => TurnEven
   ],
 };
 
-const YES = /\b(ha+n?|haa|yes|yeah|yep|ok(ay)?|sure|theek|thik|bhej|send|chalo|ji)\b/i;
-const NO_SOFT = /\b(nahi|nahin|no|not now|baad mein|later|abhi nahi|interest nahi|mat bhejo)\b/i;
-const HARD_STOP = /(dobara|again|kabhi|never|mat karna|don'?t call|do not call|stop calling|band karo)/i;
-const PROMISE = /\b(kal|tomorrow|parso|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekend|tak kar|salary)\b/i;
-const WRONG = /(wrong|galat|nahi hoon|not me|koi aur|someone else|no one by)/i;
-const BUSY = /(busy|meeting|drive|driving|baad mein call|call back|abhi baat nahi)/i;
-const AI_Q = /\b(bot|ai|robot|machine|computer|insaan|human|real person)\b/i;
-const CARD = /\b(card|cvv|otp|pin|upi)\b/i;
-const ACK = /\b(ok(ay)?|theek|thik|thanks?|thank you|shukriya|dhanyavaad|achha|accha|haan|ji|got it|bye)\b/i;
-
-export function buildScript(s: DemoScenario): Script {
+export function buildRecoveryScript(s: RecoveryScenario): Script {
   const first = s.customerName.split(" ")[0];
 
   const identityReplies: ScriptReply[] = [
-    { id: "confirm", label: "Haan ji, boliye", text: "Haan ji, boliye.", translation: "Yes, go ahead.", next: "explain", match: YES },
-    { id: "ai", label: "Kya aap AI ho?", text: "Ek second, kya aap AI ho?", translation: "Wait, are you an AI?", next: "ai_disclose", match: AI_Q },
-    { id: "busy", label: "Abhi busy hoon", text: "Abhi main busy hoon, baad mein baat karte hain.", translation: "I'm busy right now, let's talk later.", next: "busy", match: BUSY },
-    { id: "wrong", label: "Wrong number", text: `Nahi, yahan koi ${first} nahi hai. Wrong number hai.`, translation: `No, there's no ${first} here. Wrong number.`, next: "wrong", match: WRONG },
+    { id: "confirm", label: "Haan ji, boliye", text: "Haan ji, boliye.", translation: "Yes, go ahead.", next: "explain", match: YES, priority: PRIORITY.agree },
+    { id: "ai", label: "Kya aap AI ho?", text: "Ek second, kya aap AI ho?", translation: "Wait, are you an AI?", next: "ai_disclose", match: AI_Q, priority: PRIORITY.ai },
+    { id: "busy", label: "Abhi busy hoon", text: "Abhi main busy hoon, baad mein baat karte hain.", translation: "I'm busy right now, let's talk later.", next: "busy", match: BUSY, priority: PRIORITY.busy },
+    { id: "wrong", label: "Wrong number", text: `Nahi, yahan koi ${first} nahi hai. Wrong number hai.`, translation: `No, there's no ${first} here. Wrong number.`, next: "wrong", match: WRONG, priority: PRIORITY.wrong },
   ];
 
   const offerReplies: ScriptReply[] = [
-    { id: "agree", label: "Haan, bhej dijiye", text: "Haan, link bhej dijiye.", translation: "Yes, send the link.", next: "link_sent", match: YES },
-    { id: "promise", label: "Kal tak ho jayega", text: "Abhi nahi, kal tak payment ho jayega.", translation: "Not now, the payment will be done by tomorrow.", next: "promise", match: PROMISE },
-    { id: "card", label: "Card number bata doon?", text: "Card number le lijiye, aap hi payment kar do.", translation: "Take my card number and just do the payment yourself.", next: "no_card", match: CARD },
-    { id: "soft_no", label: "Abhi interest nahi", text: "Abhi interest nahi hai.", translation: "Not interested right now.", next: "soft_retry", match: NO_SOFT },
-    { id: "refuse", label: "Dobara call mat karna", text: "Mujhe dobara call mat karna.", translation: "Don't call me again.", next: "dnc", match: HARD_STOP },
+    { id: "agree", label: "Haan, bhej dijiye", text: "Haan, link bhej dijiye.", translation: "Yes, send the link.", next: "link_sent", match: YES, priority: PRIORITY.agree },
+    { id: "promise", label: "Kal tak ho jayega", text: "Abhi nahi, kal tak payment ho jayega.", translation: "Not now, the payment will be done by tomorrow.", next: "promise", match: PROMISE, priority: PRIORITY.promise },
+    { id: "card", label: "Card number bata doon?", text: "Card number le lijiye, aap hi payment kar do.", translation: "Take my card number and just do the payment yourself.", next: "no_card", match: CARD, priority: PRIORITY.card },
+    { id: "soft_no", label: "Abhi interest nahi", text: "Abhi interest nahi hai.", translation: "Not interested right now.", next: "soft_retry", match: NO_SOFT, priority: PRIORITY.softNo },
+    { id: "refuse", label: "Dobara call mat karna", text: "Mujhe dobara call mat karna.", translation: "Don't call me again.", next: "dnc", match: HARD_STOP, priority: PRIORITY.refuse },
   ];
 
   const ackReplies = (next: string): ScriptReply[] => [
-    { id: "ack", label: "Theek hai, thank you", text: "Theek hai, thank you.", translation: "Okay, thank you.", next, match: ACK },
+    { id: "ack", label: "Theek hai, thank you", text: "Theek hai, thank you.", translation: "Okay, thank you.", next, match: ACK, priority: PRIORITY.ack },
   ];
 
   const close = (text: string, translation: string, result: CallResult): ScriptNode => ({
@@ -142,13 +102,13 @@ export function buildScript(s: DemoScenario): Script {
     result,
   });
 
-  return {
+  const nodes: Record<string, ScriptNode> = {
     greet: {
       events: [
         {
           kind: "say",
-          text: `Namaste! Main ${AGENT_NAME} bol rahi hoon, ${s.merchant} ki taraf se. Kya main ${s.customerName} se baat kar rahi hoon?`,
-          translation: `Hello! This is ${AGENT_NAME} calling on behalf of ${s.merchant}. Am I speaking with ${s.customerName}?`,
+          text: `Namaste! Main ${s.agentName} bol rahi hoon, ${s.business} ki taraf se. Kya main ${s.customerName} se baat kar rahi hoon?`,
+          translation: `Hello! This is ${s.agentName} calling on behalf of ${s.business}. Am I speaking with ${s.customerName}?`,
         },
       ],
       replies: identityReplies,
@@ -157,8 +117,8 @@ export function buildScript(s: DemoScenario): Script {
       events: [
         {
           kind: "say",
-          text: `Ji haan, main ek AI assistant hoon, ${s.merchant} ki taraf se call kar rahi hoon. Kya main ${s.customerName} se baat kar rahi hoon?`,
-          translation: `Yes, I'm an AI assistant calling on behalf of ${s.merchant}. Am I speaking with ${s.customerName}?`,
+          text: `Ji haan, main ek AI assistant hoon, ${s.business} ki taraf se call kar rahi hoon. Kya main ${s.customerName} se baat kar rahi hoon?`,
+          translation: `Yes, I'm an AI assistant calling on behalf of ${s.business}. Am I speaking with ${s.customerName}?`,
         },
       ],
       replies: identityReplies.filter((r) => r.id !== "ai"),
@@ -183,9 +143,9 @@ export function buildScript(s: DemoScenario): Script {
         },
       ],
       replies: [
-        { id: "agree", label: "Theek hai, bhej do", text: "Theek hai, bhej do.", translation: "Okay, send it.", next: "link_sent", match: YES },
-        { id: "no", label: "Nahi, rehne dijiye", text: "Nahi, rehne dijiye.", translation: "No, leave it.", next: "declined", match: NO_SOFT },
-        { id: "refuse", label: "Dobara call mat karna", text: "Bola na, dobara call mat karna.", translation: "I said, don't call again.", next: "dnc", match: HARD_STOP },
+        { id: "agree", label: "Theek hai, bhej do", text: "Theek hai, bhej do.", translation: "Okay, send it.", next: "link_sent", match: YES, priority: PRIORITY.agree },
+        { id: "no", label: "Nahi, rehne dijiye", text: "Nahi, rehne dijiye.", translation: "No, leave it.", next: "declined", match: NO_SOFT, priority: PRIORITY.softNo },
+        { id: "refuse", label: "Dobara call mat karna", text: "Bola na, dobara call mat karna.", translation: "I said, don't call again.", next: "dnc", match: HARD_STOP, priority: PRIORITY.refuse },
       ],
     },
     link_sent: {
@@ -258,10 +218,13 @@ export function buildScript(s: DemoScenario): Script {
       "declined",
     ),
   };
-}
 
-export const NOT_UNDERSTOOD: Extract<TurnEvent, { kind: "say" }> = {
-  kind: "say",
-  text: "Maaf kijiye, main theek se samajh nahi payi. Kya aap dobara bata sakte hain?",
-  translation: "Sorry, I didn't quite catch that. Could you say it again?",
-};
+  return {
+    start: "greet",
+    nodes,
+    notUnderstood: {
+      text: "Maaf kijiye, main theek se samajh nahi payi. Kya aap dobara bata sakte hain?",
+      translation: "Sorry, I didn't quite catch that. Could you say it again?",
+    },
+  };
+}

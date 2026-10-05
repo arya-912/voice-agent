@@ -11,7 +11,7 @@ export function AgentShowcase() {
       <Container>
         <SectionHeading
           id="agents-title"
-          eyebrow="Agents"
+          eyebrow="The agents"
           title="One agent for each way a payment fails."
           description="Each agent follows the same flow: confirm identity, explain, offer a link, then respect the answer. Only the context and routing rules change between them."
         />

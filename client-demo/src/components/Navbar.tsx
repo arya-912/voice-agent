@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { navLinks, site } from "@/data/site";
 import { Icon } from "./Icon";
+import { ThemeToggle } from "./ThemeToggle";
 import { ButtonLink, Container } from "./ui";
 
 export function Logo({ inverse = false }: { inverse?: boolean }) {
@@ -53,14 +54,14 @@ export function Navbar() {
     >
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-ink focus:px-3 focus:py-2 focus:text-white"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-ink focus:px-3 focus:py-2 focus:text-paper"
       >
         Skip to content
       </a>
       <Container className="flex h-16 items-center justify-between">
         <Logo />
-        <nav aria-label="Main" className="hidden md:block">
-          <ul className="flex items-center gap-1">
+        <nav aria-label="Main" className="hidden lg:block">
+          <ul className="flex items-center gap-0.5">
             {navLinks.map((l) => (
               <li key={l.href}>
                 <Link
@@ -77,14 +78,15 @@ export function Navbar() {
           </ul>
         </nav>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <span className="hidden sm:block">
             <ButtonLink href="/demo" icon>
-              Try demo
+              Try the AI demo
             </ButtonLink>
           </span>
           <button
             type="button"
-            className="inline-flex size-10 items-center justify-center rounded-full text-ink hover:bg-ink/5 md:hidden"
+            className="inline-flex size-10 items-center justify-center rounded-full text-ink hover:bg-ink/5 lg:hidden"
             aria-expanded={open}
             aria-controls="mobile-nav"
             aria-label={open ? "Close menu" : "Open menu"}
@@ -96,7 +98,7 @@ export function Navbar() {
       </Container>
 
       {open && (
-        <nav id="mobile-nav" aria-label="Mobile" className="border-t border-line bg-paper md:hidden">
+        <nav id="mobile-nav" aria-label="Mobile" className="border-t border-line bg-paper lg:hidden">
           <Container className="py-3">
             <ul className="flex flex-col">
               {navLinks.map((l) => (
@@ -114,7 +116,7 @@ export function Navbar() {
               ))}
             </ul>
             <ButtonLink href="/demo" size="lg" className="mt-3 w-full" icon>
-              Try the demo
+              Try the AI demo
             </ButtonLink>
           </Container>
         </nav>

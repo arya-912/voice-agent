@@ -1,31 +1,41 @@
-# Razorcovery: client demo website
+# AI voice agents: client website
 
-A client-facing marketing and demo site for the Razorcovery payment-recovery
-voice agent. It lives in its own folder and doesn't touch the Python core in
-the rest of this repo (`voice/`, `decision/`, `audit/`, `intake/`, `metrics/`,
-`auth/`).
+The client-facing website for our AI automation business. The flagship
+offering is **AI voice calling agents for businesses**. Chatbots, websites,
+custom software, dashboards and automation are presented as complementary
+services. **Razorcovery**, the payment-recovery agent in this repo, is shown
+as a featured case study: one real example of what we build, not the identity
+of the site.
 
-The site is honest about what is built. Every capability, agent, use case and
-integration has one of three badges:
+The site lives in its own folder and doesn't touch the Python core in the rest
+of this repo (`voice/`, `decision/`, `audit/`, `intake/`, `metrics/`, `auth/`).
+
+The site is honest about what is built. Capabilities carry one of these badges:
 
 | Badge | Meaning |
 |---|---|
-| **Live** | Implemented in the core repo (each capability card names the module) |
+| **Live** | Running in a real implementation today (Razorcovery). Case-study capability cards name the module |
 | **Partially built** | Wired, but needs configuration or a later integration step |
+| **Demo** | Shown in the website simulation only |
+| **Custom build** | Built per client on the same engine, not an off-the-shelf feature |
 | **Roadmap** | Not built. Shown only to illustrate where the same engine can go |
+
+No clients, testimonials, metrics, certifications or partnerships are claimed.
 
 ## Pages
 
 | Route | What it is |
 |---|---|
-| `/` | Landing page: hero, capabilities, agent showcase, use cases, how it works + guardrails, integrations, dashboard preview, trust/placeholders, CTA |
-| `/demo` | Interactive call simulator. You play the customer and the agent follows the production call flow |
-| `/contact` | Demo-request form with validation |
+| `/` | Hero (voice agents) → capability strip → why voice agents → what your agent can do → lead workflow → industries → industry example calls → demo preview → how it works → featured implementation (Razorcovery) → solutions (primary + secondary) → why us + safeguards → testimonials (hidden while empty) → CTA |
+| `/demo` | Interactive call simulator. Pick a business scenario, play the customer, and watch the agent capture details and act. Clearly labelled as a simulation that doesn't call the production AI |
+| `/work/razorcovery` | Razorcovery case study: problem/solution, live capabilities, agents, recovery workflow + guardrails, integrations, sample dashboard |
+| `/contact` | Consultation request form (name, company, work email, phone, industry, what to automate, message) |
 
 ## Tech
 
 - Next.js 15 (App Router) + React 19 + TypeScript
-- Tailwind CSS v4. Design tokens are in `src/app/globals.css` (`@theme`)
+- Tailwind CSS v4. Design tokens are in `src/app/globals.css` (`@theme`), with
+  dark-mode overrides under `:root.dark` (follows the OS, toggle in the navbar)
 - No UI, icon or animation libraries. Icons are inline SVG (`components/Icon.tsx`), and animation is CSS only
 - npm (matches `package-lock.json`)
 
@@ -69,11 +79,21 @@ conversations run as LiveKit SIP phone calls through Gemini Live. So the demo
 uses:
 
 - **Interactive call:** an in-browser simulator (`src/lib/mockAgent.ts`)
-  driven by scripted flows (`src/data/demoConversations.ts`). The script
-  mirrors `voice/prompt.py` (identity check → explain → offer → consent or
-  refusal → close → `end_call`) and fires the same tool names as
-  `voice/flow.py`. Typed or spoken replies are matched by keyword. The page
-  says clearly that this is a simulation.
+  driven by scripted scenarios (`src/data/demoScenarios.ts`). It does **not**
+  call the production AI backend, and the page says so.
+  - *Business scenarios* (real estate, car dealership, wedding venue,
+    coaching, hotel, home-services follow-up) use a generic lead-call
+    builder (`buildLeadCallScript` in `src/data/demoScript.ts`): confirm
+    identity → ask the business's qualifying questions → record details →
+    offer the next step (book / send details / hand over). Free-typed
+    answers are captured as details. Busy, not interested, "talk to a
+    person", "are you a bot?" and "don't call again" are handled on every
+    question.
+  - *Payment-recovery scenarios* (`src/data/demoConversations.ts`) mirror
+    `voice/prompt.py` (identity check → explain → offer → consent or refusal
+    → close → `end_call`) and fire the same tool names as `voice/flow.py`.
+  - Typed or spoken replies are matched by keyword in priority order, so a
+    refusal is never read as a "yes".
 - **Dashboard preview:** illustrative sample data (`src/data/analytics.ts`),
   labelled on screen as "not customer results". Its shape mirrors
   `GET /api/summary` and `GET /api/calls`.
@@ -93,8 +113,18 @@ The simulator can reproduce failure modes through a query parameter:
 ```
 
 Invalid input (an empty reply or more than 200 characters) is rejected in the UI
-and by the provider. `?scenario=payment_retry|checkout_abandonment|mandate_failure`
-preselects a scenario.
+and by the provider. `?scenario=<id>` preselects a scenario: `real_estate`,
+`car_dealership`, `wedding_venue`, `coaching`, `hotel`, `home_services`,
+`payment_retry`, `checkout_abandonment`, `mandate_failure`.
+
+### Adding a demo scenario
+
+Add an entry to `defs` in `src/data/demoScenarios.ts` with `lead({...meta}, {...spec})`:
+the metadata (business, agent name, trigger, goal) plus the intro line,
+2–4 questions with suggested answers, the offer line and 2–3 next-step
+choices (each fires a tool and ends with a result). The UI picks it up
+automatically. For an industry card to link to it, set `demoScenario` in
+`src/data/industries.ts`.
 
 ## Connecting the real backend
 
@@ -131,17 +161,30 @@ All data access goes through **`src/lib/api.ts`**. Components and the
    site same-origin behind the same auth, or expose a read-only token-gated
    summary endpoint.
 
-3. **Content.** Everything editorial is data in `src/data/`: `agents.ts`,
-   `capabilities.ts`, `useCases.ts`, `integrations.ts`, `howItWorks.ts`,
-   `site.ts`. Edit those, not the components.
+3. **Content.** Everything editorial is data in `src/data/`. Edit those, not
+   the components:
+
+   | File | Content |
+   |---|---|
+   | `site.ts` | Brand name, tagline, nav, availability labels |
+   | `useCases.ts` | What a voice agent can do (with availability) |
+   | `voiceAgents.ts` | Capability strip, "why voice agents", lead workflow |
+   | `industries.ts` | Industry cards + example calls per industry |
+   | `solutions.ts` | Primary offering + secondary services |
+   | `howItWorks.ts` | How we work, why us, safeguards |
+   | `caseStudy.ts` | Razorcovery summary, recovery steps, guardrails |
+   | `demoScenarios.ts`, `demoScript.ts`, `demoConversations.ts` | Demo scenarios and scripts |
+   | `testimonials.ts` | Client quotes (empty; section hidden until filled) |
+   | `agents.ts`, `capabilities.ts`, `integrations.ts`, `analytics.ts` | Razorcovery case-study detail |
 
 ## Before showing this to clients
 
-- `src/components/sections/Trust.tsx` has **placeholders** for logos,
-  testimonials and metrics. Fill them only with real, permissioned material.
-- `site.contactEmail` in `src/data/site.ts` is empty. Set
-  `NEXT_PUBLIC_CONTACT_ENDPOINT` or wire the form to your CRM.
-- All customer and merchant names in examples are fictional.
+- **Brand name.** `site.name` in `src/data/site.ts` is a placeholder
+  ("AI Voice Agents") because the repo has no company name. Replace it.
+- `testimonials.ts` is empty on purpose. Add only real, permissioned quotes.
+- `site.contactEmail` is empty. Set `NEXT_PUBLIC_CONTACT_ENDPOINT` or wire
+  the form to your CRM.
+- All businesses and customers in examples are fictional.
 
 ## Structure
 
@@ -149,15 +192,18 @@ All data access goes through **`src/lib/api.ts`**. Components and the
 client-demo/
 ├── public/                     images/ logos/ screenshots/ (empty, for real assets)
 ├── src/
-│   ├── app/                    layout, /, /demo, /contact, 404, globals.css
+│   ├── app/                    layout, /, /demo, /contact, /work/razorcovery, 404, globals.css
 │   ├── components/
-│   │   ├── sections/           Hero, Capabilities, AgentShowcase, UseCases, HowItWorks,
-│   │   │                       Integrations, AnalyticsPreview, Trust, CTA
+│   │   ├── sections/           Home: Hero, CapabilityStrip, WhyVoice, VoiceAgents, Workflow,
+│   │   │                       Industries, IndustryExamples, DemoPreview, HowItWorks, CaseStudy,
+│   │   │                       Solutions, WhyUs, Testimonials, CTA
+│   │   │                       Case study: Capabilities, AgentShowcase, RecoveryWorkflow,
+│   │   │                       Integrations, AnalyticsPreview, Trust
 │   │   ├── demo/               AgentDemo, Transcript, CallControls, ScenarioPicker, OutcomePanel
-│   │   └── *.tsx               Navbar, Footer, HeroCallCard, VoiceVisualizer, FeatureCard,
+│   │   └── *.tsx               Navbar, Footer, ThemeToggle, HeroCallCard, VoiceVisualizer, FeatureCard,
 │   │                           AgentCard, UseCaseCard, IntegrationCard, Stats, ResultBadge,
 │   │                           ContactForm, Reveal, Icon, ui (Container, buttons, badges)
-│   ├── data/                   all site content + demo scripts + sample analytics
+│   ├── data/                   all site content, demo scenarios/scripts, sample analytics
 │   ├── hooks/                  useAgentCall, useSpeech, useSpeechInput
 │   ├── lib/                    api.ts (integration boundary), mockAgent.ts, errors.ts, format.ts
 │   └── types/                  shared types (mirror the Python names)

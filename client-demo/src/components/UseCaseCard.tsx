@@ -3,7 +3,7 @@ import { Icon } from "./Icon";
 import { AvailabilityBadge, IconTile } from "./ui";
 
 export function UseCaseCard({ item }: { item: UseCase }) {
-  const live = item.availability === "live";
+  const live = item.availability !== "roadmap";
   return (
     <article className={`flex h-full flex-col rounded-2xl p-6 ring-1 ring-line ${live ? "bg-surface shadow-card" : "bg-paper"}`}>
       <div className="flex items-start justify-between gap-3">

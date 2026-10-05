@@ -45,8 +45,10 @@ export function useAgentCall({ voice }: { voice: boolean }) {
   const [error, setError] = useState<CallError | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [scenario, setScenario] = useState<DemoScenario | null>(null);
+  const [collected, setCollected] = useState<Record<string, string>>({});
 
   const sessionRef = useRef<string | null>(null);
+  const langRef = useRef<"English" | "Hinglish">("English");
   const startedAt = useRef<number | null>(null);
   /** Bumped on every new call/hang-up so stale async work stops. */
   const epoch = useRef(0);
@@ -73,12 +75,13 @@ export function useAgentCall({ voice }: { voice: boolean }) {
   const playTurn = useCallback(
     async (turn: AgentTurn, myEpoch: number) => {
       if (!turn.events.length) throw new ApiError("empty");
+      if (turn.collected) setCollected(turn.collected);
       for (const ev of turn.events) {
         if (epoch.current !== myEpoch) return;
         if (ev.kind === "say") {
           setStatus("speaking");
           push({ speaker: "agent", text: ev.text, translation: ev.translation });
-          await Promise.all([sleep(speakMs(ev.text)), speech.speak(ev.text)]);
+          await Promise.all([sleep(speakMs(ev.text)), speech.speak(ev.text, langRef.current)]);
         } else {
           setStatus("thinking");
           await sleep(500);
@@ -110,12 +113,14 @@ export function useAgentCall({ voice }: { voice: boolean }) {
       setReplies([]);
       setResult(null);
       setError(null);
+      setCollected({});
       setElapsed(0);
       setStatus("connecting");
       try {
         const session = await startAgentSession(scenarioId);
         if (epoch.current !== myEpoch) return;
         sessionRef.current = session.sessionId;
+        langRef.current = session.scenario.language;
         setScenario(session.scenario);
         startedAt.current = Date.now();
         push({ speaker: "system", text: `Call connected to ${session.scenario.customerName}` });
@@ -165,6 +170,7 @@ export function useAgentCall({ voice }: { voice: boolean }) {
     setReplies([]);
     setResult(null);
     setError(null);
+    setCollected({});
     setElapsed(0);
     setStatus("ready");
   }, [speech]);
@@ -176,5 +182,5 @@ export function useAgentCall({ voice }: { voice: boolean }) {
 
   const getSessionId = useCallback(() => sessionRef.current, []);
 
-  return { status, transcript, replies, result, error, elapsed, scenario, start, respond, hangUp, reset, getSessionId };
+  return { status, transcript, replies, result, error, elapsed, scenario, collected, start, respond, hangUp, reset, getSessionId };
 }

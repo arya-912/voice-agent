@@ -52,14 +52,18 @@ export function SectionHeading({
 }
 
 const badgeStyles: Record<Availability, string> = {
-  live: "bg-brand-soft text-brand-strong ring-brand/20",
-  preview: "bg-amber-50 text-amber-800 ring-amber-700/20",
-  roadmap: "bg-slate-100 text-slate-600 ring-slate-500/20",
+  live: "bg-brand-soft text-brand-strong ring-brand/20 dark:ring-brand/40",
+  preview: "bg-amber-50 text-amber-800 ring-amber-700/20 dark:bg-amber-400/10 dark:text-amber-300 dark:ring-amber-400/25",
+  demo: "bg-violet-50 text-violet-800 ring-violet-700/20 dark:bg-violet-400/10 dark:text-violet-300 dark:ring-violet-400/25",
+  custom: "bg-sky-50 text-sky-800 ring-sky-700/20 dark:bg-sky-400/10 dark:text-sky-300 dark:ring-sky-400/25",
+  roadmap: "bg-slate-100 text-slate-600 ring-slate-500/20 dark:bg-slate-400/10 dark:text-slate-300 dark:ring-slate-400/25",
 };
 
 const badgeDot: Record<Availability, string> = {
   live: "bg-brand",
-  preview: "bg-amber-600",
+  preview: "bg-amber-600 dark:bg-amber-400",
+  demo: "bg-violet-600 dark:bg-violet-400",
+  custom: "bg-sky-600 dark:bg-sky-400",
   roadmap: "border border-slate-500 bg-transparent",
 };
 
@@ -80,11 +84,11 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "inverse";
 
 const buttonStyles: Record<ButtonVariant, string> = {
   primary:
-    "bg-ink text-white hover:bg-ink-2 shadow-sm",
+    "bg-ink text-paper hover:bg-ink-2 shadow-sm",
   secondary:
     "bg-surface text-ink ring-1 ring-inset ring-line-strong hover:bg-paper",
   ghost: "text-ink hover:bg-ink/5",
-  inverse: "bg-white text-ink hover:bg-white/90",
+  inverse: "bg-white text-console hover:bg-white/90",
 };
 
 export function ButtonLink({
@@ -131,7 +135,7 @@ export function IconTile({
       className={`inline-flex size-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ${
         tone === "brand"
           ? "bg-brand-tint text-brand ring-brand/15"
-          : "bg-slate-50 text-slate-500 ring-slate-300/60"
+          : "bg-slate-50 text-slate-500 ring-slate-300/60 dark:bg-slate-400/10 dark:text-slate-400 dark:ring-slate-400/20"
       }`}
     >
       <Icon name={name} className="size-5" />

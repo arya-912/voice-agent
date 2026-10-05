@@ -11,10 +11,14 @@ const MAX_CHARS = 200;
 export function CallControls({
   status,
   replies,
+  agentName,
+  sampleReply,
   onReply,
   onText,
 }: {
   status: CallStatus;
+  agentName: string;
+  sampleReply: string;
   replies: ReplyOption[];
   onReply: (r: ReplyOption) => void;
   onText: (text: string) => void;
@@ -37,7 +41,7 @@ export function CallControls({
   return (
     <div className="border-t border-console-line bg-console-2 px-4 py-4 sm:px-6">
       <p id="reply-hint" className="text-xs text-console-muted">
-        {canReply ? "Reply as the customer. Pick a suggestion, type, or use the mic." : status === "speaking" ? "Priya is speaking…" : "Waiting for Priya…"}
+        {canReply ? "Reply as the customer. Pick a suggestion, type your own answer, or use the mic." : status === "speaking" ? `${agentName} is speaking…` : `Waiting for ${agentName}…`}
       </p>
       <ul className="mt-3 flex flex-wrap gap-2" aria-label="Suggested replies">
         {replies.map((r) => (
@@ -46,7 +50,7 @@ export function CallControls({
               type="button"
               disabled={!canReply}
               onClick={() => onReply(r)}
-              className="rounded-full bg-console-3 px-3.5 py-2 text-sm text-console-text ring-1 ring-console-line transition-colors hover:bg-white hover:text-ink disabled:opacity-40 disabled:hover:bg-console-3 disabled:hover:text-console-text"
+              className="rounded-full bg-console-3 px-3.5 py-2 text-sm text-console-text ring-1 ring-console-line transition-colors hover:bg-white hover:text-console disabled:opacity-40 disabled:hover:bg-console-3 disabled:hover:text-console-text"
             >
               {r.label}
             </button>
@@ -67,7 +71,7 @@ export function CallControls({
           }}
           disabled={!canReply}
           maxLength={MAX_CHARS + 50}
-          placeholder="Or type, e.g. “kal tak kar dunga”"
+          placeholder={`Or type, e.g. “${sampleReply}”`}
           aria-describedby={inputError ? "reply-error" : "reply-hint"}
           aria-invalid={inputError ? true : undefined}
           className="h-11 min-w-0 flex-1 rounded-full bg-console px-4 text-sm text-console-text ring-1 ring-console-line placeholder:text-console-muted/70 focus:ring-live disabled:opacity-50"
@@ -89,7 +93,7 @@ export function CallControls({
           type="submit"
           disabled={!canReply}
           aria-label="Send reply"
-          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-white text-ink transition-colors hover:bg-white/90 disabled:opacity-40"
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-white text-console transition-colors hover:bg-white/90 disabled:opacity-40"
         >
           <Icon name="send" className="size-4" />
         </button>

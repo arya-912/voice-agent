@@ -28,7 +28,7 @@ export function Transcript({
       {entries.length === 0 && status === "ready" ? (
         <div className="flex h-full flex-col items-center justify-center text-center text-sm text-console-muted">
           <Icon name="phone" className="size-6" />
-          <p className="mt-3 max-w-xs">Start the call. Priya speaks first, and you reply as the customer.</p>
+          <p className="mt-3 max-w-xs">Start the call. {agentName} speaks first, and you reply as the customer.</p>
         </div>
       ) : (
         <ol className="flex flex-col gap-3" aria-live="polite" aria-relevant="additions">
@@ -56,7 +56,7 @@ export function Transcript({
                 <span className="mb-1 text-[11px] font-medium text-console-muted">{agent ? agentName : "You (customer)"}</span>
                 <div
                   className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed sm:max-w-[80%] ${
-                    agent ? "rounded-tl-sm bg-console-3 text-console-text" : "rounded-tr-sm bg-white text-ink"
+                    agent ? "rounded-tl-sm bg-console-3 text-console-text" : "rounded-tr-sm bg-white text-console"
                   }`}
                 >
                   <p>{e.text}</p>

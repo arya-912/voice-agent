@@ -36,6 +36,10 @@ export const callResultMeta: Record<
   wrong_number: { label: "Wrong number", tone: "neutral" },
   no_answer: { label: "No answer", tone: "neutral" },
   failed: { label: "Failed", tone: "bad" },
+  appointment_booked: { label: "Booked", tone: "good" },
+  info_sent: { label: "Details sent", tone: "neutral" },
+  callback_scheduled: { label: "Callback scheduled", tone: "neutral" },
+  handed_off: { label: "Handed to team", tone: "neutral" },
 };
 
 export const stoppingRuleLabel: Record<string, string> = {
