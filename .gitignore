@@ -22,3 +22,6 @@ data/fixtures/events.json
 # local worker/call logs (voice/call_logging.py) -- debug-only, not source
 logs/
 exports/
+
+# LiveKit Cloud agent secrets (lk agent create --secrets-file agent.env)
+agent.env

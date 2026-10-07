@@ -1,5 +1,6 @@
 # LiveKit voice worker (voice/agent.py): Gemini Live via the Google plugin.
-# Installed by the Dockerfile that LiveKit Cloud builds.
+# The Dockerfile LiveKit Cloud builds installs the pinned requirements.lock
+# compiled from this file (regenerate it after editing; command at its top).
 -r requirements.txt
 livekit-agents>=1.0
 livekit-plugins-google>=1.0

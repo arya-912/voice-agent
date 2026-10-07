@@ -7,8 +7,10 @@ FROM python:3.12-slim
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
-COPY requirements.txt requirements-agent.txt ./
-RUN pip install --no-cache-dir -r requirements-agent.txt
+# requirements.lock pins requirements-agent.txt; regenerate it with the
+# command at its top whenever that file changes.
+COPY requirements.lock ./
+RUN pip install --no-cache-dir -r requirements.lock
 
 COPY . .
 RUN python -m voice.agent download-files

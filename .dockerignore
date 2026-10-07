@@ -10,3 +10,4 @@ client-demo
 tests
 logs
 exports
+agent.env
