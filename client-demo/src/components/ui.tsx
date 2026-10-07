@@ -56,7 +56,7 @@ const badgeStyles: Record<Availability, string> = {
   preview: "bg-amber-50 text-amber-800 ring-amber-700/20 dark:bg-amber-400/10 dark:text-amber-300 dark:ring-amber-400/25",
   demo: "bg-violet-50 text-violet-800 ring-violet-700/20 dark:bg-violet-400/10 dark:text-violet-300 dark:ring-violet-400/25",
   custom: "bg-sky-50 text-sky-800 ring-sky-700/20 dark:bg-sky-400/10 dark:text-sky-300 dark:ring-sky-400/25",
-  roadmap: "bg-slate-100 text-slate-600 ring-slate-500/20 dark:bg-slate-400/10 dark:text-slate-300 dark:ring-slate-400/25",
+  roadmap: "bg-slate-200/70 text-slate-700 ring-slate-500/30 dark:bg-slate-400/20 dark:text-slate-200 dark:ring-slate-400/40",
 };
 
 const badgeDot: Record<Availability, string> = {
