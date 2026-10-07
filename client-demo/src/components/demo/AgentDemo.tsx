@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useAgentCall } from "@/hooks/useAgentCall";
-import { defaultScenarioId, getConversation, listScenarios, setSimulatedFailure, type SimulatedFailure } from "@/lib/api";
+import { useLiveAgentCall } from "@/hooks/useLiveAgentCall";
+import { defaultScenarioId, getConversation, isLiveScenario, listScenarios, setSimulatedFailure, type SimulatedFailure } from "@/lib/api";
 import { formatDuration, formatInr } from "@/lib/format";
 import type { CallStatus, TranscriptEntry } from "@/types";
 import { Icon } from "../Icon";
@@ -37,7 +38,11 @@ export function AgentDemo({
   const [voice, setVoice] = useState(true);
   const [ttsSupported, setTtsSupported] = useState(true);
   const [showTranslation, setShowTranslation] = useState(true);
-  const call = useAgentCall({ voice });
+  const simCall = useAgentCall({ voice });
+  const liveCall = useLiveAgentCall();
+  // Recovery scenarios talk to the real agent when a backend is configured.
+  const live = isLiveScenario(scenarioId);
+  const call = live ? liveCall : simCall;
   const scenario = scenarios.find((s) => s.id === scenarioId)!;
   const inCall = ["connecting", "listening", "thinking", "speaking"].includes(call.status);
   const meta = statusMeta[call.status];
@@ -51,7 +56,7 @@ export function AgentDemo({
   async function download() {
     let rows: TranscriptEntry[] = call.transcript;
     const id = call.getSessionId();
-    if (id) {
+    if (id && !live) {
       try {
         rows = await getConversation(id);
       } catch {
@@ -59,7 +64,7 @@ export function AgentDemo({
       }
     }
     const blob = new Blob(
-      [JSON.stringify({ scenario, result: call.result, collected: call.collected, simulated: true, transcript: rows }, null, 2)],
+      [JSON.stringify({ scenario, result: call.result, collected: call.collected, simulated: !live, transcript: rows }, null, 2)],
       { type: "application/json" },
     );
     const url = URL.createObjectURL(blob);
@@ -79,7 +84,8 @@ export function AgentDemo({
           value={scenarioId}
           onChange={(id) => {
             setScenarioId(id);
-            if (call.status !== "ready") call.reset();
+            if (simCall.status !== "ready") simCall.reset();
+            if (liveCall.status !== "ready") liveCall.reset();
           }}
           disabled={inCall}
         />
@@ -147,13 +153,15 @@ export function AgentDemo({
             label="Show English translation"
             hint="For the Hinglish scenarios."
           />
-          <Toggle
-            id="toggle-voice"
-            checked={voice}
-            onChange={setVoice}
-            label="Read agent lines aloud"
-            hint="Uses your browser's built-in voice, not the production AI voice. Also toggled by the speaker button on the call."
-          />
+          {!live && (
+            <Toggle
+              id="toggle-voice"
+              checked={voice}
+              onChange={setVoice}
+              label="Read agent lines aloud"
+              hint="Uses your browser's built-in voice, not the production AI voice. Also toggled by the speaker button on the call."
+            />
+          )}
         </fieldset>
       </aside>
 
@@ -170,10 +178,13 @@ export function AgentDemo({
               </span>
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-white">{scenario.agentName} · {scenario.business}</p>
-                <p className="truncate text-xs text-console-muted">AI voice agent · calling {scenario.customerName} · {scenario.language}</p>
+                <p className="truncate text-xs text-console-muted">
+                  {live ? "Live AI voice agent" : "AI voice agent"} · calling {scenario.customerName} · {scenario.language}
+                </p>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-3">
+            {!live && (
             <button
               type="button"
               onClick={() => setVoice((v) => !v)}
@@ -185,6 +196,7 @@ export function AgentDemo({
             >
               <Icon name={voice && ttsSupported ? "volume" : "volumeOff"} className="size-4" />
             </button>
+            )}
             <div className="flex flex-col items-end gap-1">
               <span role="status" className={`inline-flex items-center gap-1.5 text-xs font-medium ${meta.tone}`}>
                 <Icon name={meta.icon} className="size-3.5" />
@@ -223,14 +235,25 @@ export function AgentDemo({
 
           {inCall ? (
             <>
-              <CallControls
-                status={call.status}
-                replies={call.replies}
-                agentName={scenario.agentName}
-                sampleReply={scenario.sampleReply}
-                onReply={(r) => call.respond({ replyId: r.id }, r.text, r.translation)}
-                onText={(t) => call.respond({ text: t }, t)}
-              />
+              {live ? (
+                <div className="flex items-center justify-center gap-2 border-t border-console-line bg-console-2 px-4 py-4 text-sm text-console-text" role="status">
+                  <Icon name="mic" className={`size-4 ${call.status === "listening" ? "text-live" : "text-console-muted"}`} />
+                  {call.status === "connecting"
+                    ? `Connecting you to ${scenario.agentName}…`
+                    : call.status === "listening"
+                      ? `Your mic is live. Reply to ${scenario.agentName} out loud, in Hindi or English.`
+                      : `${scenario.agentName} is talking. You can interrupt any time.`}
+                </div>
+              ) : (
+                <CallControls
+                  status={simCall.status}
+                  replies={simCall.replies}
+                  agentName={scenario.agentName}
+                  sampleReply={scenario.sampleReply}
+                  onReply={(r) => simCall.respond({ replyId: r.id }, r.text, r.translation)}
+                  onText={(t) => simCall.respond({ text: t }, t)}
+                />
+              )}
               <div className="flex justify-center border-t border-console-line bg-console-2 px-4 py-3">
                 <button
                   type="button"
@@ -253,7 +276,11 @@ export function AgentDemo({
                   <Icon name="phone" className="size-5" />
                   {call.status === "ended" ? "Call again" : "Start call"}
                 </button>
-                <p className="text-xs text-console-muted">Simulated call · runs in your browser, not on our AI backend</p>
+                <p className="text-xs text-console-muted">
+                  {live
+                    ? "Live call to our AI agent · uses your microphone · no phone number is dialled"
+                    : "Simulated call · runs in your browser, not on our AI backend"}
+                </p>
               </div>
             )
           )}

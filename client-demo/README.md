@@ -7,8 +7,9 @@ services. **Razorcovery**, the payment-recovery agent in this repo, is shown
 as a featured case study: one real example of what we build, not the identity
 of the site.
 
-The site lives in its own folder and doesn't touch the Python core in the rest
-of this repo (`voice/`, `decision/`, `audit/`, `intake/`, `metrics/`, `auth/`).
+The site lives in its own folder. Its only link to the Python core in the rest
+of this repo is the public live-demo API (`metrics/demo_api.py`), used when
+`NEXT_PUBLIC_API_URL` is set. See "Live calls" below.
 
 The site is honest about what is built. Capabilities carry one of these badges:
 
@@ -27,7 +28,7 @@ No clients, testimonials, metrics, certifications or partnerships are claimed.
 | Route | What it is |
 |---|---|
 | `/` | Hero (voice agents) → capability strip → why voice agents → what your agent can do → lead workflow → industries → industry example calls → demo preview → how it works → featured implementation (Razorcovery) → solutions (primary + secondary) → why us + safeguards → testimonials (hidden while empty) → CTA |
-| `/demo` | Interactive call simulator. Pick a business scenario, play the customer, and watch the agent capture details and act. Clearly labelled as a simulation that doesn't call the production AI |
+| `/demo` | Interactive call demo. Pick a scenario and play the customer. With a backend configured, the three payment-recovery scenarios are live voice calls to the real agent over the mic; everything else is a clearly labelled simulation |
 | `/work/razorcovery` | Razorcovery case study: problem/solution, live capabilities, agents, recovery workflow + guardrails, integrations, sample dashboard |
 | `/contact` | Consultation request form (name, company, work email, phone, industry, what to automate, message) |
 
@@ -64,23 +65,54 @@ npm run start
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | no | Base URL for a real demo-session backend (see below). Unused by the default simulator |
+| `NEXT_PUBLIC_API_URL` | no | Core backend URL (e.g. `http://localhost:8000`). Set: recovery scenarios are live calls. Empty: everything runs on the simulator |
 | `NEXT_PUBLIC_CONTACT_ENDPOINT` | no | URL that accepts the contact form as a JSON `POST`. When empty, the form validates and shows a "demo mode, nothing was sent" confirmation |
 
 `NEXT_PUBLIC_*` values are bundled into the browser. **Never** put the core's
 secrets (`GOOGLE_API_KEY`, `LIVEKIT_API_SECRET`, `DATABASE_URL`, SIP credentials)
 in this app.
 
-## How the demo works today
+## How the demo works
 
-The core backend doesn't expose a browser-safe session API. Its JSON endpoints
-(`/api/summary`, `/api/calls`, …) require a session-cookie login, and real
-conversations run as LiveKit SIP phone calls through Gemini Live. So the demo
-uses:
+### Live calls (payment-recovery scenarios)
+
+With `NEXT_PUBLIC_API_URL` set, `payment_retry`, `checkout_abandonment` and
+`mandate_failure` talk to the production agent: the same `RecoveryAgent`
+(`voice/flow.py`), prompt and Gemini Live model that place real phone calls,
+but over the visitor's microphone instead of a phone line.
+
+```
+Start call → mic permission → POST /api/demo/session {scenario_id}
+  backend: fictional FailureEvent (demo_…), LiveKit room, agent dispatched
+           with dial=false, 10-minute token for that room only
+  browser (src/lib/liveAgent.ts, livekit-client, loaded on demand):
+           joins, publishes the mic, plays the agent's audio
+  room → UI: lk.transcription (live transcript), lk.agent.state (status),
+             razorcovery.tool (tool calls), razorcovery.outcome (result)
+End: agent's end_call deletes the room, or "End call" →
+     POST /api/demo/session/{id}/end; result falls back to GET /api/demo/session/{id}
+```
+
+`src/hooks/useLiveAgentCall.ts` returns the same shape as `useAgentCall`, so
+`AgentDemo` renders either. Error states: mic denied, demo lines busy (429),
+service unavailable (network/5xx/disabled), agent didn't join within 20s
+(timeout), call dropped (disconnected). Closing or refreshing the page hangs
+up (`sendBeacon`). The `?simulate=` modes below apply to simulated
+scenarios only.
+
+Backend side (repo root): `DEMO_ENABLED=true`, this site's origin in
+`DEMO_ALLOWED_ORIGINS`, `LIVEKIT_*`, `GOOGLE_API_KEY`, and a running worker
+(`python -m voice.agent start`). The API never takes a phone number, is
+rate-limited per IP and capped on concurrent calls, and demo calls are
+audited under `demo_` ids that the merchant dashboard hides.
+
+### Simulated calls
 
 - **Interactive call:** an in-browser simulator (`src/lib/mockAgent.ts`)
-  driven by scripted scenarios (`src/data/demoScenarios.ts`). It does **not**
-  call the production AI backend, and the page says so.
+  driven by scripted scenarios (`src/data/demoScenarios.ts`), for the
+  business scenarios always, and for the recovery ones when no backend is
+  configured. It does **not** call the production AI backend, and the page
+  says so.
   - *Business scenarios* (real estate, car dealership, wedding venue,
     coaching, hotel, home-services follow-up) use a generic lead-call
     builder (`buildLeadCallScript` in `src/data/demoScript.ts`): confirm
@@ -131,7 +163,9 @@ automatically. For an industry card to link to it, set `demoScenario` in
 All data access goes through **`src/lib/api.ts`**. Components and the
 `useAgentCall` hook never import the mock directly.
 
-1. **Voice sessions.** Implement the `VoiceAgentProvider` interface:
+1. **Voice sessions.** Recovery scenarios are already live (see "Live
+   calls" above). To put a simulated scenario on a real backend instead,
+   implement the `VoiceAgentProvider` interface:
 
    ```ts
    startAgentSession(scenarioId) => AgentSession   // { sessionId, scenario, agentName, firstTurn }
@@ -146,13 +180,8 @@ All data access goes through **`src/lib/api.ts`**. Components and the
    `unavailable`, abort → `timeout`, empty body → `empty`). Then return your
    provider from `provider()` in `api.ts`. The UI's error states work as-is.
 
-   The core would need a new, unauthenticated-but-rate-limited demo endpoint
-   that runs a text or WebRTC session against `voice/flow.py`'s
-   `RecoveryAgent`. That endpoint is not built, and this site deliberately
-   doesn't call endpoints that don't exist. For a real voice-in-browser demo,
-   the backend would mint a short-lived LiveKit room token server-side, and
-   the page would join that room. The LiveKit secret must never reach the
-   browser.
+   A new live business agent would follow the recovery pattern instead:
+   add it to `voice/demo.py` and to `LIVE_SCENARIO_IDS` in `api.ts`.
 
 2. **Analytics.** Replace the bodies of `getAnalyticsSummary()` /
    `getRecentCalls()` with `request("/api/summary")` /

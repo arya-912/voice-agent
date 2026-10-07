@@ -17,6 +17,11 @@ GEMINI_LANGUAGE = "hi-IN"       # primary; the prompt allows English too
 MAX_CALL_DURATION_S = 240       # cut the call at 4 minutes no matter what
 GREETING_TIMEOUT_S = 20         # if nobody speaks after connect, give up
 
+# Website demo calls (voice/demo.py): shorter, and give up if the
+# visitor's browser never joins the room.
+DEMO_MAX_CALL_DURATION_S = 180
+DEMO_JOIN_TIMEOUT_S = 20        # < the room's 30s empty_timeout (voice/demo.py)
+
 # Retry-link time-to-live communicated to the customer.
 RETRY_LINK_TTL_HOURS = 24
 

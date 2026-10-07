@@ -6,6 +6,7 @@ every one of them is logged. The refusal tool hard-ends the call.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime, timezone
 
 from livekit.agents import Agent, RunContext, function_tool
@@ -26,6 +27,7 @@ class RecoveryAgent(Agent):
         attempt_number: int,
         merchant: str = "the merchant",
         link_provider: RetryLinkProvider | None = None,
+        on_tool: Callable[[str, str], None] | None = None,
     ) -> None:
         super().__init__(instructions=build_system_prompt(event, merchant=merchant))
         self.event = event
@@ -37,6 +39,16 @@ class RecoveryAgent(Agent):
         # up right after the agent's closing line, instead of sitting until
         # the call hits its max-duration timeout.
         self.call_ended_by_agent = False
+        # optional observer (tool name, human-readable detail) -- the
+        # website demo uses it to show tool calls live; never moves state.
+        self._on_tool = on_tool
+
+    def _notify(self, tool: str, detail: str) -> None:
+        if self._on_tool:
+            try:
+                self._on_tool(tool, detail)
+            except Exception:  # noqa: BLE001 -- an observer must not break the call
+                pass
 
     # --- transcript capture ---------------------------------------------
     def record_turn(self, role: str, text: str) -> None:
@@ -57,6 +69,7 @@ class RecoveryAgent(Agent):
         self.outcome.consent_captured = True
         self.outcome.result = "recovered"
         self.outcome.duration_s = self._elapsed()
+        self._notify("send_retry_link", f"Retry link sent by SMS · valid until {link.expires_at:%d %b %H:%M} UTC")
         return (
             f"Link bhej diya gaya hai (valid {link.expires_at:%d %b %H:%M} tak). "
             "Customer ko batao ki SMS check karein aur wahin se payment complete karein."
@@ -70,6 +83,7 @@ class RecoveryAgent(Agent):
         self.outcome.duration_s = self._elapsed()
         if note:
             self.outcome.decline_note = note.strip()
+        self._notify("offer_declined", "Soft no recorded" + (f" · {note.strip()}" if note.strip() else ""))
         return "Theek hai, politely samjho aur call wrap up karo."
 
     @function_tool
@@ -80,6 +94,7 @@ class RecoveryAgent(Agent):
         self.outcome.result = "refused"
         self.outcome.refusal_captured = True
         self.outcome.duration_s = self._elapsed()
+        self._notify("mark_do_not_contact", "Do-not-contact set · all channels blocked")
         return (
             "Customer ne further contact se mana kar diya. Sirf ek chhoti si "
             "apology do disturbance ke liye aur turant call band karo."
@@ -91,6 +106,7 @@ class RecoveryAgent(Agent):
         number is wrong."""
         self.outcome.result = "wrong_number"
         self.outcome.duration_s = self._elapsed()
+        self._notify("wrong_person", "Wrong person · number flagged")
         return "Galti se disturb karne ke liye sorry bolo aur call end karo."
 
     @function_tool
@@ -101,4 +117,5 @@ class RecoveryAgent(Agent):
             # spoke to someone but no other tool fired
             self.outcome.result = "link_sent_no_commit" if self.outcome.retry_link_url else "declined"
         self.call_ended_by_agent = True
+        self._notify("end_call", f"Call ended · {self.outcome.result}")
         return "__END_CALL__"

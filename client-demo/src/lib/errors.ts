@@ -7,7 +7,10 @@ export type ApiErrorCode =
   | "failed"
   | "empty"
   | "invalid_input"
-  | "session_expired";
+  | "session_expired"
+  | "rate_limited"
+  | "mic_denied"
+  | "disconnected";
 
 export class ApiError extends Error {
   constructor(
@@ -35,6 +38,12 @@ export function describeError(err: unknown): {
       return { title: "No response", body: "The agent didn't return anything for that turn. Try saying it another way.", retryable: true };
     case "invalid_input":
       return { title: "Couldn't send that", body: err instanceof ApiError && err.message !== code ? err.message : "Please enter a short reply and try again.", retryable: true };
+    case "rate_limited":
+      return { title: "Demo lines are busy", body: err instanceof ApiError && err.message !== code ? err.message : "Too many demo calls right now. Please try again in a few minutes.", retryable: true };
+    case "mic_denied":
+      return { title: "Microphone needed", body: err instanceof ApiError && err.message !== code ? err.message : "Allow microphone access in your browser to talk to the agent, then try again.", retryable: true };
+    case "disconnected":
+      return { title: "Call dropped", body: "The connection to the agent was lost. Check your network and start a new call.", retryable: true };
     case "session_expired":
       return { title: "Call session expired", body: "This demo call was idle for too long. Start a new call to continue.", retryable: false };
     default:

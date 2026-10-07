@@ -11,6 +11,12 @@ Job metadata is JSON: a serialised FailureEvent plus
 When "dial" is set and SIP_OUTBOUND_TRUNK_ID is configured, the agent
 rings the customer in over the outbound SIP trunk; otherwise it just
 waits for someone to join the room (dev / console testing).
+
+"demo": true marks a website demo call (voice/demo.py): the "customer"
+is a browser visitor in the room, never a phone. The customer-protection
+stopping rules don't apply to a visitor who started the call themselves;
+the call is shorter, not recorded, and tool calls + the outcome are
+published to the room so the website can show them.
 """
 from __future__ import annotations
 
@@ -33,6 +39,7 @@ from audit.log import append_event
 from data.schemas import FailureEvent
 from decision.stopping_rules import check_stopping_rules
 from voice import config
+from voice import demo as demo_mod
 from voice.call_logging import per_call_log_file, setup_worker_logging
 from voice.dialer import dial_sip_participant
 from voice.flow import RecoveryAgent
@@ -47,7 +54,7 @@ logger = logging.getLogger("voice.agent")
 AGENT_NAME = os.environ.get("LIVEKIT_AGENT_NAME", "razorcovery-agent")
 
 
-def _parse_metadata(raw: str) -> tuple[FailureEvent, int, str, bool]:
+def _parse_metadata(raw: str) -> tuple[FailureEvent, int, str, bool, bool]:
     data = json.loads(raw)
     meta = data.pop("_call", {})
     event = FailureEvent.model_validate(data)
@@ -56,25 +63,48 @@ def _parse_metadata(raw: str) -> tuple[FailureEvent, int, str, bool]:
         int(meta.get("attempt_number", event.prior_attempts + 1)),
         meta.get("merchant", "the merchant"),
         bool(meta.get("dial", False)),
+        bool(meta.get("demo", False)),
     )
+
+
+def _publisher(ctx, topic: str):
+    """Fire-and-forget JSON publish to the room (website demo only)."""
+    pending: set[asyncio.Task] = set()
+
+    def publish(payload: dict) -> asyncio.Task | None:
+        try:
+            task = asyncio.get_running_loop().create_task(
+                ctx.room.local_participant.publish_data(
+                    json.dumps(payload), reliable=True, topic=topic))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("could not publish %s: %s", topic, exc)
+            return None
+        pending.add(task)
+        task.add_done_callback(pending.discard)
+        return task
+
+    return publish
 
 
 async def entrypoint(ctx) -> None:  # ctx: livekit.agents.JobContext
     from datetime import datetime, timezone
 
-    event, attempt_number, merchant, should_dial = _parse_metadata(ctx.job.metadata or "{}")
+    event, attempt_number, merchant, should_dial, is_demo = _parse_metadata(ctx.job.metadata or "{}")
+    should_dial = should_dial and not is_demo  # a demo never rings a phone
 
     with per_call_log_file(event.event_id):
-        logger.info("call starting: event=%s attempt=%d merchant=%s dial=%s",
-                    event.event_id, attempt_number, merchant, should_dial)
+        logger.info("call starting: event=%s attempt=%d merchant=%s dial=%s demo=%s",
+                    event.event_id, attempt_number, merchant, should_dial, is_demo)
 
         # Never dial past a stopping rule, even if the dispatcher already checked.
-        stop = check_stopping_rules(
+        # (A demo call is a visitor talking to the agent, not a customer being
+        # contacted -- it has no attempts, refusals or call window to honour.)
+        stop = None if is_demo else check_stopping_rules(
             attempts=event.prior_attempts, refused=event.refused,
             timezone=event.customer.timezone, now=datetime.now(timezone.utc),
             intervention="voice",
         )
-        if stop.blocked:
+        if stop is not None and stop.blocked:
             logger.warning("call aborted by stopping rule: %s", stop.rule)
             with db.get_conn() as conn:
                 append_event(
@@ -90,7 +120,12 @@ async def entrypoint(ctx) -> None:  # ctx: livekit.agents.JobContext
         await ctx.connect()
         started_at = datetime.now(timezone.utc)
 
-        agent = RecoveryAgent(event, attempt_number=attempt_number, merchant=merchant)
+        on_tool = None
+        if is_demo:
+            publish_tool = _publisher(ctx, demo_mod.TOPIC_TOOL)
+            on_tool = lambda tool, detail: publish_tool({"tool": tool, "detail": detail})  # noqa: E731
+        agent = RecoveryAgent(event, attempt_number=attempt_number, merchant=merchant,
+                              on_tool=on_tool)
         model = realtime.RealtimeModel(
             model=config.GEMINI_LIVE_MODEL, api_key=config.google_api_key(),
             voice=config.GEMINI_VOICE, language=config.GEMINI_LANGUAGE, temperature=0.6,
@@ -177,10 +212,25 @@ async def entrypoint(ctx) -> None:  # ctx: livekit.agents.JobContext
                 _finalise(event, agent, started_at, None)
                 return
 
+        if is_demo:
+            # don't greet an empty room: the browser joins right after the
+            # session is created, usually within a second or two
+            try:
+                await asyncio.wait_for(ctx.wait_for_participant(),
+                                       timeout=config.DEMO_JOIN_TIMEOUT_S)
+            except (asyncio.TimeoutError, RuntimeError):  # RuntimeError: room closed first
+                logger.warning("demo visitor never joined")
+                agent.outcome.result = "no_answer"
+                agent.outcome.error = "demo_visitor_did_not_join"
+                await session.aclose()
+                await _close_room(ctx)
+                _finalise(event, agent, started_at, None)
+                return
+
         # the call is connected — default outcome for a call that just ends
         agent.outcome.result = "declined"
 
-        egress_id = await start_recording(ctx, event.event_id)
+        egress_id = None if is_demo else await start_recording(ctx, event.event_id)
 
         await session.start(agent=agent, room=ctx.room)
         turn_timer.attach()
@@ -192,8 +242,10 @@ async def entrypoint(ctx) -> None:  # ctx: livekit.agents.JobContext
         )
 
         try:
-            await asyncio.wait_for(_wait_for_end(session, agent, speaking),
-                                   timeout=config.MAX_CALL_DURATION_S)
+            await asyncio.wait_for(
+                _wait_for_end(session, agent, speaking),
+                timeout=config.DEMO_MAX_CALL_DURATION_S if is_demo else config.MAX_CALL_DURATION_S,
+            )
         except asyncio.TimeoutError:
             agent.outcome.error = "max_call_duration_exceeded"
             logger.warning("call hit max duration")
@@ -206,21 +258,38 @@ async def entrypoint(ctx) -> None:  # ctx: livekit.agents.JobContext
                 await stop_recording(egress_id)
             except Exception:
                 pass
-            # session.aclose() only tears down our own agent pipeline --
-            # the SIP leg stays bridged until the room itself is closed,
-            # so without this the phone call just sits there until the
-            # customer hangs up manually or an empty-room timeout fires.
-            # Deleting the room forces the actual hangup immediately.
-            try:
-                await asyncio.wait_for(
-                    ctx.api.room.delete_room(api.DeleteRoomRequest(room=ctx.room.name)),
-                    timeout=10,
-                )
-            except Exception as exc:
-                logger.warning("could not close room %s: %s", ctx.room.name, exc)
+            if is_demo:
+                # tell the website how it ended before the room goes away
+                # (it falls back to GET /api/demo/session/{id} if this is missed)
+                task = _publisher(ctx, demo_mod.TOPIC_OUTCOME)({
+                    "result": agent.outcome.result, "error": agent.outcome.error,
+                    "consent_captured": agent.outcome.consent_captured,
+                    "refusal_captured": agent.outcome.refusal_captured,
+                })
+                if task:
+                    try:
+                        await asyncio.wait_for(task, timeout=3)
+                    except Exception:  # noqa: BLE001
+                        pass
+            await _close_room(ctx)
             _apply_usage(agent, usage_holder)
             _finalise(event, agent, started_at, egress_id)
             logger.info("call log written: logs/calls/%s.log", event.event_id)
+
+
+async def _close_room(ctx) -> None:
+    # session.aclose() only tears down our own agent pipeline --
+    # the SIP leg stays bridged until the room itself is closed,
+    # so without this the phone call just sits there until the
+    # customer hangs up manually or an empty-room timeout fires.
+    # Deleting the room forces the actual hangup immediately.
+    try:
+        await asyncio.wait_for(
+            ctx.api.room.delete_room(api.DeleteRoomRequest(room=ctx.room.name)),
+            timeout=10,
+        )
+    except Exception as exc:
+        logger.warning("could not close room %s: %s", ctx.room.name, exc)
 
 
 def _apply_usage(agent: RecoveryAgent, usage_holder: list) -> None:

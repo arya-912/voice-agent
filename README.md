@@ -19,6 +19,8 @@ See `PRD.md` for scope, `CLAUDE.md` for working rules.
 - [x] Editable agent prompt (`/settings`) — persona/tone/flow customisable
       per workspace; compliance guardrails always appended, not editable
 - [x] Sample sheet download on `/upload`
+- [x] Client website (`client-demo/`) live demo: visitors talk to the real
+      recovery agent from the browser mic (no phone dialled)
 - [ ] Recording playback (wired; needs an S3 bucket)
 - [ ] Day-3 live pilot with a real merchant
 
@@ -169,3 +171,30 @@ from `audit_log` at request time (`metrics/compute.py`) — nothing seeded.
   `/upload` has a "Download a sample sheet" link showing the expected columns.
 - `GET /api/summary`, `/api/exceptions`, `/api/calls`, `/api/event/{id}` — JSON.
 - `GET /login`, `/signup`, `POST /logout`.
+
+## Website live demo
+
+`client-demo/` (Next.js) is the public website. Its `/demo` page can put a
+visitor on a live call with the real agent through their browser mic.
+`metrics/demo_api.py` (the only public JSON routes, off unless
+`DEMO_ENABLED=true`) + `voice/demo.py`:
+
+- `POST /api/demo/session {"scenario_id": "payment_retry"}` → builds a
+  fictional `demo_…` event, creates a LiveKit room, dispatches the worker
+  with `dial=false, demo=true`, returns a 10-minute token for that room only.
+- `GET /api/demo/session/{id}` → `pending` or `ended` + the outcome row.
+- `POST /api/demo/session/{id}/end` → closes the room.
+
+Never takes a phone number. Per-IP hourly limit (`DEMO_RATE_LIMIT_PER_HOUR`),
+concurrency cap (`DEMO_MAX_CONCURRENT`), CORS limited to
+`DEMO_ALLOWED_ORIGINS`. In the worker, demo calls skip the customer
+stopping rules (the visitor started the call; there's no customer to
+protect) and recording, are capped at 3 minutes, and publish tool calls +
+the outcome to the room. They're audited like any call under `demo_` ids,
+which the dashboard hides.
+
+```bash
+DEMO_ENABLED=true uvicorn metrics.app:app --port 8000
+python -m voice.agent start
+cd client-demo && NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
+```

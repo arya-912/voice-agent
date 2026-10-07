@@ -12,6 +12,7 @@ import csv as _csv
 import dataclasses
 import io
 import json
+import os
 import subprocess
 import sys
 from datetime import date
@@ -19,6 +20,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 
 from audit import db
@@ -26,7 +28,7 @@ from audit.log import append_event, query
 from auth import service as auth_service
 from intake import parse as intake_parse
 from intake import store as intake_store
-from metrics import _ctx, compute, templates
+from metrics import _ctx, compute, demo_api, templates
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -34,12 +36,14 @@ load_dotenv()
 app = FastAPI(title="razorcovery", docs_url=None, redoc_url=None)
 
 _PUBLIC_PATHS = {"/login", "/signup", "/logout", "/favicon.ico"}
+# the client website's live demo (metrics/demo_api.py) — rate-limited, no data
+_PUBLIC_PREFIXES = ("/api/demo/",)
 
 
 @app.middleware("http")
 async def _require_login(request: Request, call_next):
     path = request.url.path
-    if path in _PUBLIC_PATHS:
+    if path in _PUBLIC_PATHS or path.startswith(_PUBLIC_PREFIXES):
         return await call_next(request)
     try:
         user = auth_service.session_user(request.cookies.get(auth_service.SESSION_COOKIE))
@@ -53,6 +57,21 @@ async def _require_login(request: Request, call_next):
         return await call_next(request)
     finally:
         _ctx.current_email.reset(tok)
+
+
+# Added after the login middleware so it runs first and answers the
+# browser's CORS preflight. No credentials: the cookie-gated dashboard
+# stays unreadable cross-origin; only the public demo routes are useful.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in os.environ.get(
+        "DEMO_ALLOWED_ORIGINS", "http://localhost:3000").split(",") if o.strip()],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+    max_age=600,
+)
+app.include_router(demo_api.router)
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -108,13 +127,14 @@ _ROW_COLS = ["id", "ts", "event_id", "customer_id", "entry_type", "failure_type"
              "intervention", "reason", "amount_inr", "attempt_number", "payload"]
 
 
-_TEST_EVENT_PREFIXES = ("pytest_", "smoketest_")
+_TEST_EVENT_PREFIXES = ("pytest_", "smoketest_", "demo_")
 
 
 def _is_test_artifact(event_id: str) -> bool:
     """pytest's own fixtures (and one-off manual smoke checks) write
     directly-into-the-shared-DB rows with these prefixes (see
-    tests/conftest.py) — hide them from the web UI. Nothing is deleted;
+    tests/conftest.py) — hide them from the web UI, as are the website's
+    live demo calls (demo_, voice/demo.py). Nothing is deleted;
     this is a display filter only."""
     return event_id.startswith(_TEST_EVENT_PREFIXES)
 

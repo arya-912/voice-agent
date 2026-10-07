@@ -1,16 +1,17 @@
 /**
  * The demo site's single integration boundary.
  *
- * Components and hooks only call the functions exported here. Today they
- * are backed by an in-browser simulator (lib/mockAgent.ts, scenarios in
- * data/demoScenarios.ts) and sample analytics (data/analytics.ts). The
- * website demo does NOT call the production AI backend: the core does not
- * expose a public, browser-safe session API (its JSON endpoints sit behind
- * a session-cookie login and real calls go over PSTN via LiveKit SIP).
+ * Components and hooks only call the functions exported here.
  *
- * To go live, implement a provider with the same `VoiceAgentProvider`
- * shape that calls your backend through `request()`, and return it from
- * `provider()`. See client-demo/README.md, "Connecting the real backend".
+ * - Live calls: when NEXT_PUBLIC_API_URL points at the core backend, the
+ *   three payment-recovery scenarios talk to the real agent (Gemini Live
+ *   via LiveKit, voice/flow.py) over the visitor's microphone. The backend
+ *   (metrics/demo_api.py) mints a one-room token; lib/liveAgent.ts joins.
+ * - Simulated calls: every other scenario, and all scenarios when no
+ *   backend is configured, run on the in-browser simulator
+ *   (lib/mockAgent.ts, scenarios in data/demoScenarios.ts).
+ * - Analytics stay sample data (data/analytics.ts): the real dashboard is
+ *   merchant data behind a login and must not appear on a public site.
  */
 import { sampleCalls, sampleSummary } from "@/data/analytics";
 import { DEFAULT_SCENARIO, scenarios } from "@/data/demoScenarios";
@@ -19,6 +20,7 @@ import type {
   AgentTurn,
   AnalyticsSummary,
   CallLogRow,
+  CallResult,
   DemoScenario,
   TranscriptEntry,
 } from "@/types";
@@ -68,7 +70,8 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     clearTimeout(timer);
   }
   if (res.status === 401 || res.status === 410) throw new ApiError("session_expired");
-  if (res.status === 400 || res.status === 422) throw new ApiError("invalid_input");
+  if (res.status === 400 || res.status === 422) throw new ApiError("invalid_input", await detail(res));
+  if (res.status === 429) throw new ApiError("rate_limited", await detail(res));
   if (res.status >= 500) throw new ApiError("unavailable");
   if (!res.ok) throw new ApiError("failed");
   const text = await res.text();
@@ -76,8 +79,68 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return JSON.parse(text) as T;
 }
 
+/** The backend's `{"detail": "..."}` message, when it sent a readable one. */
+async function detail(res: Response): Promise<string | undefined> {
+  try {
+    const d = (await res.json())?.detail;
+    return typeof d === "string" ? d : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /* ------------------------------------------------------------------ */
-/* Voice-agent sessions                                                */
+/* Live calls to the real agent (metrics/demo_api.py)                  */
+/* ------------------------------------------------------------------ */
+
+/** Scenarios backed by the real agent (voice/demo.py SCENARIOS). */
+const LIVE_SCENARIO_IDS = new Set(["payment_retry", "checkout_abandonment", "mandate_failure"]);
+
+/** True when a backend is configured, so recovery scenarios run live. */
+export const LIVE_DEMO_ENABLED = API_URL !== "";
+
+export const isLiveScenario = (scenarioId: string) =>
+  LIVE_DEMO_ENABLED && LIVE_SCENARIO_IDS.has(scenarioId);
+
+export interface LiveSession {
+  session_id: string;
+  scenario_id: string;
+  livekit_url: string;
+  /** Short-lived token that can join only this call's room. */
+  token: string;
+  expires_at: string;
+}
+
+export interface LiveOutcome {
+  result: CallResult | null;
+  duration_s?: number;
+  error?: string | null;
+  transcript?: { role: string; text: string }[];
+}
+
+export interface LiveSessionStatus {
+  session_id: string;
+  status: "pending" | "ended";
+  outcome: LiveOutcome | null;
+}
+
+export const startLiveSession = (scenarioId: string) =>
+  request<LiveSession>("/api/demo/session", { method: "POST", body: JSON.stringify({ scenario_id: scenarioId }) });
+
+export const getLiveSession = (sessionId: string) =>
+  request<LiveSessionStatus>(`/api/demo/session/${encodeURIComponent(sessionId)}`);
+
+export const endLiveSession = (sessionId: string) =>
+  request<{ ok: boolean }>(`/api/demo/session/${encodeURIComponent(sessionId)}/end`, { method: "POST" });
+
+/** Best-effort hang-up while the page is unloading (fetch may not finish). */
+export function endLiveSessionOnUnload(sessionId: string) {
+  if (!API_URL || typeof navigator === "undefined" || !navigator.sendBeacon) return;
+  navigator.sendBeacon(`${API_URL}/api/demo/session/${encodeURIComponent(sessionId)}/end`);
+}
+
+/* ------------------------------------------------------------------ */
+/* Voice-agent sessions (simulator)                                    */
 /* ------------------------------------------------------------------ */
 
 export type CustomerInput = { replyId: string } | { text: string };

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { AgentDemo } from "@/components/demo/AgentDemo";
 import { Icon } from "@/components/Icon";
 import { Container } from "@/components/ui";
-import type { SimulatedFailure } from "@/lib/api";
+import { LIVE_DEMO_ENABLED, type SimulatedFailure } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "Experience an AI voice agent",
@@ -34,9 +34,15 @@ export default async function DemoPage({
         </p>
         <p className="mt-4 inline-flex items-start gap-2 rounded-lg bg-surface px-3 py-2 text-xs text-ink-2 ring-1 ring-line">
           <Icon name="alert" className="mt-px size-4 shrink-0 text-warn" />
-          <span>
-            <strong className="font-semibold text-ink">This is a simulation.</strong> It runs in your browser and does not connect to our production AI backend. Replies are matched by keyword against a script. No phone call is placed and nothing is stored. A real agent understands free-form speech and is built around your own workflow.
-          </span>
+          {LIVE_DEMO_ENABLED ? (
+            <span>
+              <strong className="font-semibold text-ink">The payment-recovery scenarios are live.</strong> They connect you to our real AI voice agent over your microphone (your browser will ask for permission). No phone call is placed, and the call is logged as a demo, separate from customer data. The industry scenarios are simulations that run in your browser, with replies matched by keyword against a script.
+            </span>
+          ) : (
+            <span>
+              <strong className="font-semibold text-ink">This is a simulation.</strong> It runs in your browser and does not connect to our production AI backend. Replies are matched by keyword against a script. No phone call is placed and nothing is stored. A real agent understands free-form speech and is built around your own workflow.
+            </span>
+          )}
         </p>
       </div>
       <div className="mt-10">

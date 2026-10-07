@@ -48,7 +48,9 @@ BEGIN
     FROM pg_constraint con
     JOIN pg_class rel ON rel.oid = con.conrelid
     WHERE rel.relname = 'audit_log' AND con.contype = 'c'
-      AND pg_get_constraintdef(con.oid) LIKE '%entry_type%';
+      AND pg_get_constraintdef(con.oid) LIKE '%entry_type%'
+      -- the reason-required guard also mentions entry_type; never touch it
+      AND con.conname <> 'reason_required_for_decisions';
     IF cname IS NOT NULL THEN
         EXECUTE format('ALTER TABLE audit_log DROP CONSTRAINT %I', cname);
     END IF;
