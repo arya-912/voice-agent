@@ -33,14 +33,11 @@ export const useCaseOptions = [
 /** Optional. When unset, the form validates and shows a demo-mode confirmation without sending. */
 const ENDPOINT = process.env.NEXT_PUBLIC_CONTACT_ENDPOINT ?? "";
 
-const FREE_MAIL = /@(gmail|yahoo|hotmail|outlook|live|icloud|aol|proton|protonmail|rediffmail)\./i;
-
 function validate(f: Fields): Partial<Record<keyof Fields, string>> {
   const e: Partial<Record<keyof Fields, string>> = {};
   if (f.name.trim().length < 2) e.name = "Please enter your name.";
   if (!f.company.trim()) e.company = "Please enter your company.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(f.email.trim())) e.email = "Enter a valid email address.";
-  else if (FREE_MAIL.test(f.email)) e.email = "Please use your work email.";
   if (f.phone.trim() && !/^\+?[\d\s()-]{8,16}$/.test(f.phone.trim())) e.phone = "Enter a valid phone number, or leave it blank.";
   if (!f.industry) e.industry = "Choose your industry, or Other.";
   if (!f.useCase) e.useCase = "Choose the closest option.";
@@ -96,7 +93,7 @@ export function ContactForm() {
         </h2>
         <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted">
           {state === "sent"
-            ? "Our team will reply to your work email within one business day."
+            ? "Our team will reply to your email within one business day."
             : "Demo mode: this form isn't connected to a backend yet, so nothing was sent. Please share your details with your contact on our team directly."}
         </p>
         <button
@@ -154,7 +151,9 @@ export function ContactForm() {
           <Err k="company" />
         </div>
         <div>
-          <Label k="email">Work email</Label>
+          <Label k="email">
+            Email<span className="ml-1 font-normal text-muted">(work email preferred)</span>
+          </Label>
           <input {...field("email")} type="email" autoComplete="email" inputMode="email" placeholder="you@company.com" className={`${field("email").className} h-11`} />
           <Err k="email" />
         </div>
