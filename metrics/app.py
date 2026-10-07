@@ -64,7 +64,8 @@ async def _require_login(request: Request, call_next):
 # stays unreadable cross-origin; only the public demo routes are useful.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in os.environ.get(
+    # browsers send Origin without a trailing slash; tolerate one pasted here
+    allow_origins=[o.strip().rstrip("/") for o in os.environ.get(
         "DEMO_ALLOWED_ORIGINS", "http://localhost:3000").split(",") if o.strip()],
     allow_credentials=False,
     allow_methods=["GET", "POST"],
