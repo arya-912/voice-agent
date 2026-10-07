@@ -147,3 +147,85 @@ def test_session_status_pending_then_ended(anon):
     assert body["status"] == "ended"
     assert body["outcome"]["result"] == "recovered"
     assert body["outcome"]["transcript"][0]["text"] == "Namaste"
+
+
+def test_client_ip_trusts_forwarded_headers_only_on_vercel(anon, monkeypatch):
+    seen = []
+    real_acquire = demo_api.limits.acquire
+    monkeypatch.setattr(demo_api.limits, "acquire", lambda ip: seen.append(ip) or real_acquire(ip))
+    hdrs = {"x-real-ip": "203.0.113.7", "x-forwarded-for": "203.0.113.7, 10.0.0.1"}
+    anon.post("/api/demo/session", json={"scenario_id": "payment_retry"}, headers=hdrs)
+    monkeypatch.setenv("VERCEL", "1")
+    anon.post("/api/demo/session", json={"scenario_id": "payment_retry"}, headers=hdrs)
+    assert seen == ["testclient", "203.0.113.7"]
+
+
+def test_limits_backend_selection(monkeypatch):
+    monkeypatch.delenv("DEMO_LIMITS_BACKEND", raising=False)
+    monkeypatch.delenv("VERCEL", raising=False)
+    assert isinstance(demo_api._make_limits(), demo_api._Limits)
+    monkeypatch.setenv("VERCEL", "1")
+    assert isinstance(demo_api._make_limits(), demo_api._PgLimits)
+    monkeypatch.setenv("DEMO_LIMITS_BACKEND", "memory")
+    assert isinstance(demo_api._make_limits(), demo_api._Limits)
+
+
+# --- Postgres-backed limits (Vercel). demo_slot isn't append-only, so test
+# rows (ip "pytest-…") are deleted by ip on teardown.
+
+@pytest.fixture()
+def pg_limits():
+    import uuid
+
+    lim = demo_api._PgLimits()
+    prefix = f"pytest-{uuid.uuid4().hex[:8]}"
+    yield lim, prefix
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM demo_slot WHERE ip LIKE %s", (f"{prefix}%",))
+
+
+def _live_slots() -> int:
+    with db.get_conn() as conn:
+        return conn.execute(
+            "SELECT count(*) FROM demo_slot WHERE ended_at IS NULL"
+            " AND started_at > now() - make_interval(secs => %s)", (demo_api._SLOT_TTL_S,),
+        ).fetchone()[0]
+
+
+@pytest.mark.skipif(not db.ping(), reason="Postgres not reachable")
+def test_pg_per_ip_rate_limit(pg_limits, monkeypatch):
+    lim, ip = pg_limits
+    monkeypatch.setenv("DEMO_RATE_LIMIT_PER_HOUR", "2")
+    monkeypatch.setenv("DEMO_MAX_CONCURRENT", "100000")
+    for n in range(2):
+        r = lim.acquire(ip)
+        lim.hold(r, f"demo_pytest{n:05d}{ip[-4:]}")
+        lim.release(f"demo_pytest{n:05d}{ip[-4:]}")
+    with pytest.raises(demo_api.HTTPException) as exc:
+        lim.acquire(ip)
+    assert exc.value.status_code == 429 and "Too many" in exc.value.detail
+    lim.acquire(ip + "-other")  # a different network is unaffected
+
+
+@pytest.mark.skipif(not db.ping(), reason="Postgres not reachable")
+def test_pg_concurrency_cap_release_and_abandon(pg_limits, monkeypatch):
+    lim, prefix = pg_limits
+    monkeypatch.setenv("DEMO_RATE_LIMIT_PER_HOUR", "100")
+    lim.acquire(prefix + "-warmup")  # creates the table if needed
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM demo_slot WHERE ip LIKE %s", (f"{prefix}%",))
+    monkeypatch.setenv("DEMO_MAX_CONCURRENT", str(_live_slots() + 2))
+
+    sid = f"demo_pytest_{prefix[-8:]}"
+    first = lim.acquire(prefix + "-a")
+    lim.hold(first, sid)
+    second = lim.acquire(prefix + "-b")
+    with pytest.raises(demo_api.HTTPException) as exc:
+        lim.acquire(prefix + "-c")
+    assert exc.value.status_code == 429 and "busy" in exc.value.detail
+
+    lim.release(sid)        # call ended
+    third = lim.acquire(prefix + "-c")
+    lim.abandon(second)     # start failed: frees the slot too
+    lim.abandon(third)
+    lim.acquire(prefix + "-d")

@@ -1,20 +1,14 @@
-# Day 1: data generator, audit trail, decision layer.
+# Web app: dashboard + intake workflow + accounts + website demo API (FastAPI).
+# This is all Vercel installs, so keep it slim (250 MB function limit).
+# The voice worker's heavier deps are in requirements-agent.txt; local dev
+# installs everything with requirements-dev.txt.
 pydantic>=2.6
 psycopg[binary]>=3.1
 python-dotenv>=1.0
-Faker>=24.0
 tzdata>=2024.1          # zoneinfo needs this on Windows
-pytest>=8.0
-
-# Day 2: LiveKit voice agent (Gemini Live via the Google plugin).
-livekit-agents>=1.0
-livekit-plugins-google>=1.0
-livekit-plugins-silero>=1.0   # VAD for the fallback STT->LLM->TTS path
-
-# Web app: dashboard + intake workflow + accounts (FastAPI).
 fastapi>=0.115
 uvicorn>=0.34
-httpx>=0.28                   # TestClient in tests
 python-multipart>=0.0.9      # file upload / form posts
 openpyxl>=3.1                # .xlsx intake
 bcrypt>=4.1                  # password hashing
+livekit-api>=1.0             # demo rooms, agent dispatch, visitor tokens

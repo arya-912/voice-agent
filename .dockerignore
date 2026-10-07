@@ -1,0 +1,12 @@
+# secrets go in as LiveKit agent secrets, never baked into the image
+.env
+.git
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+client-demo
+tests
+logs
+exports

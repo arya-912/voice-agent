@@ -27,7 +27,7 @@ See `PRD.md` for scope, `CLAUDE.md` for working rules.
 ## Setup
 
 ```bash
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 cp .env.example .env          # fill DATABASE_URL, GOOGLE_API_KEY, LIVEKIT_*
 ```
 

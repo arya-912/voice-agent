@@ -1,0 +1,5 @@
+# Everything, for local dev: web app + voice worker + data generator + tests.
+-r requirements-agent.txt
+Faker>=24.0
+httpx>=0.28                   # TestClient in tests
+pytest>=8.0
